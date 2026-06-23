@@ -1,0 +1,89 @@
+import type { Equipment } from '../types'
+
+export const EQUIPMENT_LIST: Equipment[] = [
+  // 통신설비
+  { id: 'comm-01', category: '통신설비', name: '케이블설비', unit: '식', standardPersonnel: 0.29, applyAdjustment: true },
+  { id: 'comm-02', category: '통신설비', name: '배관설비', unit: '식', standardPersonnel: 0.58, applyAdjustment: true },
+  { id: 'comm-03', category: '통신설비', name: '국선인입설비', unit: '식', standardPersonnel: 0.17, applyAdjustment: true },
+  { id: 'comm-04', category: '통신설비', name: '단자함설비', unit: '식', standardPersonnel: 0.24, applyAdjustment: true },
+  { id: 'comm-05', category: '통신설비', name: '이동통신구내선로설비', unit: '식', standardPersonnel: 0.06, applyAdjustment: true },
+  { id: 'comm-06', category: '통신설비', name: '전화설비', unit: '식', standardPersonnel: 0.10, applyAdjustment: true },
+  { id: 'comm-07', category: '통신설비', name: '방송 공동수신 안테나 시설', unit: '식', standardPersonnel: 0.89, applyAdjustment: true },
+  { id: 'comm-08', category: '통신설비', name: '종합유선방송 구내전송선로설비', unit: '식', standardPersonnel: 0.52, applyAdjustment: true },
+  // 방송설비
+  { id: 'broad-01', category: '방송설비', name: '방송음향설비', unit: '식', standardPersonnel: 0.50, applyAdjustment: true },
+  // 정보설비
+  { id: 'info-01', category: '정보설비', name: '네트워크설비', unit: '식', standardPersonnel: 1.85, applyAdjustment: true },
+  { id: 'info-02', category: '정보설비', name: '전자출입(통제)시스템', unit: '식', standardPersonnel: 0.83, applyAdjustment: true },
+  { id: 'info-03', category: '정보설비', name: '원격검침시스템', unit: '식', standardPersonnel: 0.52, applyAdjustment: true },
+  { id: 'info-04', category: '정보설비', name: '주차관제시스템', unit: '식', standardPersonnel: 2.45, applyAdjustment: true },
+  { id: 'info-05', category: '정보설비', name: '주차유도시스템', unit: '식', standardPersonnel: 0.66, applyAdjustment: true },
+  { id: 'info-06', category: '정보설비', name: '무인택배시스템', unit: '식', standardPersonnel: 0.77, applyAdjustment: true },
+  { id: 'info-07', category: '정보설비', name: '비상벨설비', unit: '식', standardPersonnel: 0.44, applyAdjustment: true },
+  { id: 'info-08', category: '정보설비', name: '영상정보처리기기 시스템', unit: '식', standardPersonnel: 0.81, applyAdjustment: true },
+  { id: 'info-09', category: '정보설비', name: '홈네트워크 설비(전유부분)', unit: '세대', standardPersonnel: 0.03, applyAdjustment: false },
+  { id: 'info-10', category: '정보설비', name: '빌딩안내시스템(BIS)', unit: '식', standardPersonnel: 1.69, applyAdjustment: true },
+  { id: 'info-11', category: '정보설비', name: '전기시계시스템', unit: '식', standardPersonnel: 0.46, applyAdjustment: true },
+  { id: 'info-12', category: '정보설비', name: '통합 SI시스템', unit: '식', standardPersonnel: 0.46, applyAdjustment: true },
+  { id: 'info-13', category: '정보설비', name: '시설관리시스템(Facility Management System)', unit: '식', standardPersonnel: 0.54, applyAdjustment: true },
+  { id: 'info-14', category: '정보설비', name: '건물에너지관리시스템(BEMS)', unit: '식', standardPersonnel: 0.76, applyAdjustment: true },
+  { id: 'info-15', category: '정보설비', name: '지능형 인원계수 시스템', unit: '식', standardPersonnel: 0.56, applyAdjustment: true },
+  { id: 'info-16', category: '정보설비', name: '지능형 경계 감시 시스템', unit: '식', standardPersonnel: 0.80, applyAdjustment: false },
+  { id: 'info-17', category: '정보설비', name: '스마트 병원 설비(의료용 너스콜)', unit: '식', standardPersonnel: 2.12, applyAdjustment: true },
+  { id: 'info-18', category: '정보설비', name: '스마트 도난방지 시스템', unit: '식', standardPersonnel: 0.17, applyAdjustment: true },
+  { id: 'info-19', category: '정보설비', name: '스마트 공장 시스템', unit: '식', standardPersonnel: 0.31, applyAdjustment: true },
+  { id: 'info-20', category: '정보설비', name: '스마트 도서관 시스템', unit: '개소', standardPersonnel: 0.52, applyAdjustment: false },
+  { id: 'info-21', category: '정보설비', name: '지능형 이상음원 시스템', unit: '개소', standardPersonnel: 0.64, applyAdjustment: false },
+  { id: 'info-22', category: '정보설비', name: 'IoT기반 지하공간 안전관리 시스템', unit: '개소', standardPersonnel: 0.13, applyAdjustment: false },
+  { id: 'info-23', category: '정보설비', name: '디지털 사이니지', unit: '개소', standardPersonnel: 0.56, applyAdjustment: false },
+  // 기타설비
+  { id: 'etc-01', category: '기타설비', name: '통신용 전원설비', unit: '식', standardPersonnel: 1.66, applyAdjustment: true },
+  { id: 'etc-02', category: '기타설비', name: '통신접지설비', unit: '식', standardPersonnel: 0.12, applyAdjustment: true },
+]
+
+// 기술자 노임단가
+export const WAGE_RATES: Record<string, number> = {
+  '특급기술자': 343079,
+  '고급기술자': 315288,
+  '중급기술자': 283343,
+  '초급기술자': 249574,
+}
+
+// 연면적에 따른 기술자 등급 결정
+export function getTechnicianGrade(floorArea: number): string {
+  if (floorArea >= 60000) return '특급기술자'
+  if (floorArea >= 30000) return '고급기술자'
+  if (floorArea >= 15000) return '중급기술자'
+  return '초급기술자'
+}
+
+// 연면적 조정계수
+export function getAdjustmentFactor(floorArea: number): number {
+  if (floorArea >= 60000) return 2.80
+  if (floorArea >= 55000) return 2.65
+  if (floorArea >= 50000) return 2.50
+  if (floorArea >= 45000) return 2.35
+  if (floorArea >= 40000) return 2.20
+  if (floorArea >= 35000) return 2.05
+  if (floorArea >= 30000) return 1.90
+  if (floorArea >= 25000) return 1.75
+  if (floorArea >= 20000) return 1.60
+  if (floorArea >= 15000) return 1.45
+  if (floorArea >= 10000) return 1.30
+  return 1.15
+}
+
+// 직접인건비 계산
+export function calcDirectLaborCost(
+  selectedEquipment: { equipment: Equipment; quantity: number }[],
+  adjustmentFactor: number,
+  wageRate: number
+): number {
+  return selectedEquipment.reduce((sum, { equipment, quantity }) => {
+    if (equipment.applyAdjustment) {
+      return sum + quantity * equipment.standardPersonnel * adjustmentFactor * wageRate
+    } else {
+      return sum + quantity * equipment.standardPersonnel * wageRate
+    }
+  }, 0)
+}

@@ -15,8 +15,6 @@ import { useAuth } from '../context/AuthContext'
 import type { InspectionForm, InspectionType, InspectionItem, InspectionLocation, InspectionResult, InspectionPhoto } from '../types'
 import { format } from 'date-fns'
 
-const isMobile = window.innerWidth < 768
-
 export default function Inspection() {
   const { user } = useAuth()
   const [step, setStep] = useState<'select' | 'form'>('select')
@@ -316,10 +314,10 @@ export default function Inspection() {
   const uniqueEquipmentIds = [...new Set(form.items.map(i => i.equipmentId))]
 
   return (
-    <div className={`${isMobile ? '' : 'flex gap-6'}`}>
-      {/* 설비 카드 목록 (사이드바 or 상단) */}
-      <div className={`${isMobile ? 'mb-4 overflow-x-auto' : 'w-60 shrink-0'}`}>
-        <div className={`${isMobile ? 'flex gap-2 pb-2' : 'space-y-2'}`}>
+    <div className="flex flex-col md:flex-row gap-4">
+      {/* 설비 카드 목록 — 모바일: 가로 스크롤 / PC: 세로 사이드바 */}
+      <div className="md:w-56 shrink-0">
+        <div className="flex md:flex-col gap-2 overflow-x-auto md:overflow-x-visible pb-1 md:pb-0">
           {uniqueEquipmentIds.map(eqId => {
             const eq = EQUIPMENT_LIST.find(e => e.id === eqId)
             const done = equipmentCompletionMap[eqId]
@@ -328,9 +326,7 @@ export default function Inspection() {
               <button
                 key={eqId}
                 onClick={() => setActiveEquipmentId(eqId)}
-                className={`${
-                  isMobile ? 'shrink-0 px-3 py-2 text-xs' : 'w-full px-3 py-3 text-left text-sm'
-                } rounded-lg border transition-all flex items-center gap-2 ${
+                className={`shrink-0 md:shrink md:w-full px-3 py-2.5 rounded-lg border transition-all flex items-center gap-2 text-left text-sm ${
                   active
                     ? 'bg-blue-600 text-white border-blue-600'
                     : done
@@ -342,7 +338,9 @@ export default function Inspection() {
                   ? <CheckCircle size={14} className={active ? 'text-white' : 'text-green-600'} />
                   : <AlertTriangle size={14} className={active ? 'text-white' : 'text-yellow-500'} />
                 }
-                <span className="leading-tight">{eq?.name ?? eqId}</span>
+                <span className="text-xs leading-tight whitespace-nowrap md:whitespace-normal">
+                  {eq?.name ?? eqId}
+                </span>
               </button>
             )
           })}
@@ -351,30 +349,35 @@ export default function Inspection() {
 
       {/* 점검표 본문 */}
       <div className="flex-1 space-y-4 min-w-0">
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <div>
-            <h2 className="font-semibold text-gray-800">{selectedBuilding.name}</h2>
-            <p className="text-sm text-gray-500">
-              [{form.inspectionType}] {form.inspectionDate}
-              {form.status !== '작성중' && (
-                <span className={`ml-2 px-2 py-0.5 rounded text-xs ${
-                  form.status === '검수완료' ? 'bg-green-100 text-green-700' :
-                  form.status === '점검표보완' ? 'bg-orange-100 text-orange-700' :
-                  'bg-blue-100 text-blue-700'
-                }`}>{form.status}</span>
-              )}
-            </p>
+        {/* 헤더 — 모바일에선 세로 배치 */}
+        <div className="card py-3">
+          <div className="flex items-start justify-between gap-2 mb-2">
+            <div className="min-w-0">
+              <h2 className="font-semibold text-gray-800 truncate">{selectedBuilding.name}</h2>
+              <p className="text-xs text-gray-500 mt-0.5">
+                [{form.inspectionType}] {form.inspectionDate}
+                {form.status !== '작성중' && (
+                  <span className={`ml-2 px-2 py-0.5 rounded text-xs ${
+                    form.status === '검수완료' ? 'bg-green-100 text-green-700' :
+                    form.status === '점검표보완' ? 'bg-orange-100 text-orange-700' :
+                    'bg-blue-100 text-blue-700'
+                  }`}>{form.status}</span>
+                )}
+              </p>
+            </div>
+            <button onClick={() => setStep('select')} className="text-xs text-gray-400 hover:text-gray-600 shrink-0 mt-0.5">
+              ← 목록
+            </button>
           </div>
-          <div className="flex gap-2">
-            <button onClick={saveItem} className="btn-secondary flex items-center gap-1.5 text-sm">
-              <Save size={14} />항목 저장
+          <div className="flex gap-2 flex-wrap">
+            <button onClick={saveItem} className="btn-secondary flex items-center gap-1.5 text-xs py-1.5 px-3">
+              <Save size={13} />저장
             </button>
             {form.status === '작성중' && (
-              <button onClick={completeInspection} className="btn-primary flex items-center gap-1.5 text-sm">
-                <CheckCircle size={14} />점검 완료
+              <button onClick={completeInspection} className="btn-primary flex items-center gap-1.5 text-xs py-1.5 px-3">
+                <CheckCircle size={13} />점검 완료
               </button>
             )}
-            <button onClick={() => setStep('select')} className="btn-secondary text-sm">목록으로</button>
           </div>
         </div>
 

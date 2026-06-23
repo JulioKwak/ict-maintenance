@@ -62,9 +62,9 @@ export default function InspectionReview() {
   }
 
   return (
-    <div className="flex gap-6 h-[calc(100vh-7rem)]">
+    <div className="flex flex-col md:flex-row gap-4 md:gap-6 md:h-[calc(100vh-7rem)]">
       {/* 목록 */}
-      <div className="w-80 shrink-0 overflow-y-auto space-y-2">
+      <div className="w-full md:w-80 shrink-0 md:overflow-y-auto space-y-2">
         <h2 className="font-semibold text-gray-800 mb-3">점검완료 목록</h2>
         {reviewTargets.length === 0 ? (
           <p className="text-sm text-gray-400 text-center py-8">검수 대기 중인 점검표가 없습니다.</p>

@@ -97,9 +97,9 @@ export default function BuildingManagement() {
   }
 
   return (
-    <div className="flex gap-6 h-[calc(100vh-7rem)]">
+    <div className="flex flex-col md:flex-row gap-4 md:gap-6 md:h-[calc(100vh-7rem)]">
       {/* 목록 */}
-      <div className="w-80 shrink-0 flex flex-col gap-3">
+      <div className="w-full md:w-80 shrink-0 flex flex-col gap-3">
         <div className="flex gap-2">
           <div className="relative flex-1">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />

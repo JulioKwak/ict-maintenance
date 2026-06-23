@@ -53,7 +53,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     inspector: '점검자',
   }[user?.role ?? 'inspector']
 
-  const currentLabel = NAV_ITEMS.find(n => location.pathname.startsWith(n.path))?.label ?? '정보통신설비 유지보수관리'
+  const isActive = (path: string) =>
+    location.pathname === path || location.pathname.startsWith(path + '/')
+
+  const currentLabel = NAV_ITEMS.find(n => isActive(n.path))?.label ?? '정보통신설비 유지보수관리'
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
@@ -81,7 +84,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         {/* 내비 */}
         <nav className="flex-1 py-3 overflow-y-auto">
           {NAV_ITEMS.map(({ path, label, icon: Icon }) => {
-            const active = location.pathname.startsWith(path)
+            const active = isActive(path)
             return (
               <Link
                 key={path}
@@ -149,7 +152,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             {/* 내비 */}
             <nav className="flex-1 py-3 overflow-y-auto">
               {NAV_ITEMS.map(({ path, label, icon: Icon }) => {
-                const active = location.pathname.startsWith(path)
+                const active = isActive(path)
                 return (
                   <Link
                     key={path}
@@ -207,7 +210,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 md:hidden z-30">
         <div className="flex">
           {MOBILE_TAB_ITEMS.map(({ path, label, icon: Icon }) => {
-            const active = location.pathname.startsWith(path)
+            const active = isActive(path)
             return (
               <Link
                 key={path}

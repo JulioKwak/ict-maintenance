@@ -1,6 +1,7 @@
 import { useState, useEffect, type FormEvent } from 'react'
 import { Plus, Pencil, Trash2, X, Users } from 'lucide-react'
 import { usersApi } from '../utils/api'
+import { formatPhone } from '../utils/phone'
 import { useAuth } from '../context/AuthContext'
 import type { User, UserRole } from '../types'
 
@@ -176,7 +177,7 @@ export default function UserManagement() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">연락처</label>
                 <input type="tel" value={form.phone}
-                  onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+                  onChange={e => setForm(f => ({ ...f, phone: formatPhone(e.target.value) }))}
                   className="input-field" placeholder="010-0000-0000" />
               </div>
               <div>

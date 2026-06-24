@@ -551,12 +551,15 @@ function LocationRow({
         const canvas = document.createElement('canvas')
         const img = new Image()
         img.onload = () => {
-          const W = img.width
-          const H = img.height
+          // 최대 1200px 리사이즈 (용량 압축)
+          const MAX = 1200
+          const ratio = Math.min(MAX / img.width, MAX / img.height, 1)
+          const W = Math.round(img.width * ratio)
+          const H = Math.round(img.height * ratio)
           canvas.width = W
           canvas.height = H
           const ctx = canvas.getContext('2d')!
-          ctx.drawImage(img, 0, 0)
+          ctx.drawImage(img, 0, 0, W, H)
 
           // 보드판 오버레이
           const boardH = Math.round(H * 0.22)
@@ -579,7 +582,8 @@ function LocationRow({
             ctx.fillText(line, 12, H - boardH + lineH * (i + 0.9))
           })
 
-          const newPhoto: InspectionPhoto = { id: generateId(), dataUrl: canvas.toDataURL('image/jpeg', 0.85), caption: '' }
+          // JPEG 품질 0.75 (원본 대비 약 10~20배 압축)
+          const newPhoto: InspectionPhoto = { id: generateId(), dataUrl: canvas.toDataURL('image/jpeg', 0.75), caption: '' }
           onUpdate(item.id, loc.id, 'photos', [...loc.photos, newPhoto])
         }
         img.src = dataUrl

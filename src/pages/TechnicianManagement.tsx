@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, type FormEvent } from 'react'
 import { Plus, Pencil, Trash2, X, HardHat } from 'lucide-react'
 import { techniciansApi } from '../utils/api'
+import { formatPhone } from '../utils/phone'
 import type { Technician, TechnicianGrade } from '../types'
 
 const GRADES: TechnicianGrade[] = ['특급기술자', '고급기술자', '중급기술자', '초급기술자']
@@ -158,7 +159,7 @@ export default function TechnicianManagement() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">연락처</label>
-                <input type="tel" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+                <input type="tel" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: formatPhone(e.target.value) }))}
                   className="input-field" placeholder="010-0000-0000" />
               </div>
               <div>

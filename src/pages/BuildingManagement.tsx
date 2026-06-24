@@ -234,7 +234,7 @@ export default function BuildingManagement() {
               ) : (
                 <div className="space-y-2">
                   {selectedInspections.map(insp => (
-                    <div key={insp.id} className="flex items-center justify-between p-2.5 bg-gray-50 rounded-lg">
+                    <div key={insp.id} className="flex items-center justify-between p-2.5 bg-[#f5f5f7] rounded-[8px]">
                       <div>
                         <span className={`text-xs px-2 py-0.5 rounded mr-2 ${
                           insp.inspectionType === '기능점검' ? 'bg-blue-50 text-blue-700' : 'bg-purple-50 text-purple-700'

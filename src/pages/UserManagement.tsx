@@ -107,7 +107,7 @@ export default function UserManagement() {
               </thead>
               <tbody>
                 {users.map(u => (
-                  <tr key={u.id} className="border-b border-gray-50 hover:bg-gray-50">
+                  <tr key={u.id} className="border-b border-[#f0f0f0] hover:bg-[#f5f5f7]">
                     <td className="py-3 font-mono text-gray-800">{u.username}</td>
                     <td className="py-3 font-medium text-gray-900">
                       {u.name}
@@ -139,7 +139,7 @@ export default function UserManagement() {
 
       {showForm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+          <div className="bg-white w-full max-w-md" style={{ borderRadius: '18px', border: '1px solid #e0e0e0' }}>
             <div className="flex items-center justify-between p-5 border-b">
               <h3 className="font-semibold text-gray-900">{editing ? '사용자 수정' : '사용자 등록'}</h3>
               <button onClick={closeForm} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>

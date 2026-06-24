@@ -114,7 +114,7 @@ export default function TechnicianManagement() {
               </thead>
               <tbody>
                 {technicians.map(t => (
-                  <tr key={t.id} className="border-b border-gray-50 hover:bg-gray-50">
+                  <tr key={t.id} className="border-b border-[#f0f0f0] hover:bg-[#f5f5f7]">
                     <td className="py-3 font-medium text-gray-900">{t.name}</td>
                     <td className="py-3">
                       <span className={`text-xs px-2 py-0.5 rounded-full ${GRADE_COLORS[t.grade]}`}>{t.grade}</span>
@@ -139,7 +139,7 @@ export default function TechnicianManagement() {
 
       {showForm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+          <div className="bg-white w-full max-w-md" style={{ borderRadius: '18px', border: '1px solid #e0e0e0' }}>
             <div className="flex items-center justify-between p-5 border-b">
               <h3 className="font-semibold text-gray-900">{editing ? '기술자 수정' : '기술자 등록'}</h3>
               <button onClick={closeForm} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>

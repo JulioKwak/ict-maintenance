@@ -344,7 +344,7 @@ export default function BuildingRegister() {
         </div>
 
         {/* 산출 내역 */}
-        <div className="bg-gray-50 rounded-lg p-4 text-sm space-y-2">
+        <div className="bg-[#f5f5f7] rounded-[11px] p-4 text-sm space-y-2">
           <CostRow label="직접인건비" value={fmt(Math.round(directLaborCost))} />
           <CostRow label="직접경비" value={fmt(Math.round(directExpense))} sub="여비 + 차량운행비 + 현장소요경비" />
           <CostRow label={`제경비 (${overheadRate}%)`} value={fmt(overheadCost)} />

@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { Shield } from 'lucide-react'
+import { Wifi } from 'lucide-react'
 
 export default function Login() {
   const { login } = useAuth()
@@ -30,54 +30,103 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-blue-900 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8">
+    <div
+      className="min-h-screen flex items-center justify-center p-6"
+      style={{ backgroundColor: '#f5f5f7' }}
+    >
+      <div className="w-full max-w-[360px]">
+
+        {/* 로고 & 타이틀 */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 bg-blue-600 rounded-full mb-4">
-            <Shield className="text-white" size={28} />
+          <div
+            className="inline-flex items-center justify-center w-[68px] h-[68px] mb-5"
+            style={{ backgroundColor: '#0066cc', borderRadius: '18px' }}
+          >
+            <Wifi className="text-white" size={32} />
           </div>
-          <h1 className="text-xl font-bold text-gray-900">정보통신설비</h1>
-          <p className="text-sm text-gray-500 mt-1">유지보수·관리 시스템</p>
+          <h1
+            className="font-semibold"
+            style={{
+              fontFamily: '"SF Pro Display", system-ui, -apple-system, sans-serif',
+              fontSize: '28px',
+              letterSpacing: '-0.028em',
+              color: '#1d1d1f',
+              lineHeight: 1.1,
+            }}
+          >
+            정보통신설비
+          </h1>
+          <p
+            className="mt-1.5"
+            style={{ fontSize: '15px', color: '#7a7a7a', letterSpacing: '-0.022em' }}
+          >
+            유지보수·관리 시스템
+          </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">아이디</label>
-            <input
-              type="text"
-              value={username}
-              onChange={e => setUsername(e.target.value)}
-              className="input-field"
-              placeholder="아이디를 입력하세요"
-              autoComplete="username"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">비밀번호</label>
-            <input
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              className="input-field"
-              placeholder="비밀번호를 입력하세요"
-              autoComplete="current-password"
-              required
-            />
-          </div>
-          {error && (
-            <p className="text-sm text-red-600 bg-red-50 rounded-md px-3 py-2">{error}</p>
-          )}
-          <button
-            type="submit"
-            className="btn-primary w-full mt-2 py-2.5 disabled:opacity-60"
-            disabled={loading}
-          >
-            {loading ? '로그인 중...' : '로그인'}
-          </button>
-        </form>
+        {/* 폼 카드 */}
+        <div className="card" style={{ padding: '28px 24px' }}>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label
+                className="block font-medium mb-1.5"
+                style={{ fontSize: '13px', color: '#1d1d1f', letterSpacing: '-0.014em' }}
+              >
+                아이디
+              </label>
+              <input
+                type="text"
+                value={username}
+                onChange={e => setUsername(e.target.value)}
+                className="input-field"
+                placeholder="아이디를 입력하세요"
+                autoComplete="username"
+                required
+              />
+            </div>
 
-        <p className="text-center text-xs text-gray-400 mt-6">
+            <div>
+              <label
+                className="block font-medium mb-1.5"
+                style={{ fontSize: '13px', color: '#1d1d1f', letterSpacing: '-0.014em' }}
+              >
+                비밀번호
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                className="input-field"
+                placeholder="비밀번호를 입력하세요"
+                autoComplete="current-password"
+                required
+              />
+            </div>
+
+            {error && (
+              <div
+                className="px-4 py-2.5 rounded-[11px] text-sm"
+                style={{ backgroundColor: 'rgba(255,59,48,0.08)', color: '#ff3b30', fontSize: '13px' }}
+              >
+                {error}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              className="btn-primary w-full disabled:opacity-50"
+              style={{ padding: '13px 22px', fontSize: '16px', marginTop: '4px' }}
+              disabled={loading}
+            >
+              {loading ? '로그인 중...' : '로그인'}
+            </button>
+          </form>
+        </div>
+
+        <p
+          className="text-center mt-5"
+          style={{ fontSize: '12px', color: '#7a7a7a', letterSpacing: '-0.012px' }}
+        >
           초기 계정: admin / admin1234
         </p>
       </div>

@@ -194,7 +194,7 @@ export default function InspectionReview() {
                   <div className="space-y-2 text-sm">
                     {items.map(item => (
                       <div key={item.id} className="border border-gray-100 rounded-lg overflow-hidden">
-                        <div className="flex items-center gap-2 px-3 py-2 bg-gray-50">
+                        <div className="flex items-center gap-2 px-3 py-2 bg-[#f5f5f7]">
                           <span className={`text-xs px-1.5 py-0.5 rounded ${
                             item.subCategory === '외관' ? 'bg-gray-200 text-gray-700' :
                             item.subCategory === '기능' ? 'bg-blue-100 text-blue-700' :

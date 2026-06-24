@@ -125,7 +125,7 @@ export default function Dashboard() {
                 {recentInspections.map(insp => {
                   const building = buildings.find(b => b.id === insp.buildingId)
                   return (
-                    <tr key={insp.id} className="border-b border-gray-50 hover:bg-gray-50">
+                    <tr key={insp.id} className="border-b border-[#f0f0f0] hover:bg-[#f5f5f7]">
                       <td className="py-2 text-gray-900">{building?.name ?? '-'}</td>
                       <td className="py-2">
                         <span className={`text-xs px-2 py-0.5 rounded ${insp.inspectionType === '기능점검' ? 'bg-blue-50 text-blue-700' : 'bg-purple-50 text-purple-700'}`}>

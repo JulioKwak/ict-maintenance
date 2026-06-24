@@ -61,9 +61,9 @@ export default function BuildingRegister() {
   const overheadCost = Math.round(directLaborCost * overheadRate / 100)
   const techFee = Math.round((directLaborCost + overheadCost) * techFeeRate / 100)
   const vat = Math.round((directLaborCost + directExpense + overheadCost + techFee) * 0.1)
-  const totalCost = directLaborCost + directExpense + overheadCost + techFee + vat
+  const totalCost = Math.round(directLaborCost + directExpense + overheadCost + techFee + vat)
 
-  const fmt = (n: number) => n.toLocaleString('ko-KR') + '원'
+  const fmt = (n: number) => Math.round(n).toLocaleString('ko-KR') + '원'
 
   const handleFloorAreaChange = useCallback((val: string) => {
     setFloorArea(val)

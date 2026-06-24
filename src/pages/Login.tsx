@@ -78,7 +78,7 @@ export default function Login() {
         </form>
 
         <p className="text-center text-xs text-gray-400 mt-6">
-          초기 계정: admin / admin1234
+          계정 발급은 관리자에게 문의하세요.
         </p>
       </div>
     </div>

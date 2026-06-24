@@ -101,39 +101,65 @@ export default function TechnicianManagement() {
             <p>등록된 기술자가 없습니다.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-100">
-                  <th className="text-left py-2.5 text-gray-500 font-medium">이름</th>
-                  <th className="text-left py-2.5 text-gray-500 font-medium">등급</th>
-                  <th className="text-left py-2.5 text-gray-500 font-medium">연락처</th>
-                  <th className="text-left py-2.5 text-gray-500 font-medium">이메일</th>
-                  <th className="text-right py-2.5 text-gray-500 font-medium">관리</th>
-                </tr>
-              </thead>
-              <tbody>
-                {technicians.map(t => (
-                  <tr key={t.id} className="border-b border-[#f0f0f0] hover:bg-[#f5f5f7]">
-                    <td className="py-3 font-medium text-gray-900">{t.name}</td>
-                    <td className="py-3">
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${GRADE_COLORS[t.grade]}`}>{t.grade}</span>
-                    </td>
-                    <td className="py-3 text-gray-600">{t.phone}</td>
-                    <td className="py-3 text-gray-600">{t.email}</td>
-                    <td className="py-3 text-right">
-                      <button onClick={() => openEdit(t)} className="text-blue-500 hover:text-blue-700 p-1 mr-1">
-                        <Pencil size={14} />
-                      </button>
-                      <button onClick={() => handleDelete(t)} className="text-red-400 hover:text-red-600 p-1">
-                        <Trash2 size={14} />
-                      </button>
-                    </td>
+          <>
+            {/* 모바일 카드 리스트 */}
+            <div className="md:hidden divide-y divide-[#f0f0f0]">
+              {technicians.map(t => (
+                <div key={t.id} className="flex items-center justify-between py-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-medium text-[#1d1d1f] text-sm">{t.name}</span>
+                      <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${GRADE_COLORS[t.grade]}`}>{t.grade}</span>
+                    </div>
+                    <p className="text-xs text-[#7a7a7a] mt-0.5">{t.phone || '연락처 없음'}</p>
+                  </div>
+                  <div className="flex items-center gap-0.5 shrink-0 ml-3">
+                    <button onClick={() => openEdit(t)} className="p-2" style={{ color: '#0066cc' }}>
+                      <Pencil size={15} />
+                    </button>
+                    <button onClick={() => handleDelete(t)} className="p-2" style={{ color: '#ff3b30' }}>
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* 데스크탑 테이블 */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[#f0f0f0]">
+                    <th className="text-left py-2.5 text-[#7a7a7a] font-medium">이름</th>
+                    <th className="text-left py-2.5 text-[#7a7a7a] font-medium">등급</th>
+                    <th className="text-left py-2.5 text-[#7a7a7a] font-medium">연락처</th>
+                    <th className="text-left py-2.5 text-[#7a7a7a] font-medium">이메일</th>
+                    <th className="text-right py-2.5 text-[#7a7a7a] font-medium">관리</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {technicians.map(t => (
+                    <tr key={t.id} className="border-b border-[#f0f0f0] hover:bg-[#f5f5f7]">
+                      <td className="py-3 font-medium text-[#1d1d1f] whitespace-nowrap">{t.name}</td>
+                      <td className="py-3 whitespace-nowrap">
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${GRADE_COLORS[t.grade]}`}>{t.grade}</span>
+                      </td>
+                      <td className="py-3 text-[#333333] whitespace-nowrap">{t.phone}</td>
+                      <td className="py-3 text-[#333333]">{t.email}</td>
+                      <td className="py-3 text-right whitespace-nowrap">
+                        <button onClick={() => openEdit(t)} className="p-1 mr-1" style={{ color: '#0066cc' }}>
+                          <Pencil size={14} />
+                        </button>
+                        <button onClick={() => handleDelete(t)} className="p-1" style={{ color: '#ff3b30' }}>
+                          <Trash2 size={14} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 

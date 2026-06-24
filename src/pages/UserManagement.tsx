@@ -93,47 +93,85 @@ export default function UserManagement() {
             <p>등록된 사용자가 없습니다.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-100">
-                  <th className="text-left py-2.5 text-gray-500 font-medium">아이디</th>
-                  <th className="text-left py-2.5 text-gray-500 font-medium">이름</th>
-                  <th className="text-left py-2.5 text-gray-500 font-medium">권한</th>
-                  <th className="text-left py-2.5 text-gray-500 font-medium">연락처</th>
-                  <th className="text-left py-2.5 text-gray-500 font-medium">이메일</th>
-                  <th className="text-right py-2.5 text-gray-500 font-medium">관리</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map(u => (
-                  <tr key={u.id} className="border-b border-[#f0f0f0] hover:bg-[#f5f5f7]">
-                    <td className="py-3 font-mono text-gray-800">{u.username}</td>
-                    <td className="py-3 font-medium text-gray-900">
-                      {u.name}
-                      {u.id === currentUser?.id && <span className="ml-1.5 text-xs text-blue-500">(나)</span>}
-                    </td>
-                    <td className="py-3">
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${ROLE_COLORS[u.role]}`}>
+          <>
+            {/* 모바일 카드 리스트 */}
+            <div className="md:hidden divide-y divide-[#f0f0f0]">
+              {users.map(u => (
+                <div key={u.id} className="flex items-center justify-between py-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-medium text-[#1d1d1f] text-sm">
+                        {u.name}
+                        {u.id === currentUser?.id && <span className="ml-1 text-xs" style={{ color: '#0066cc' }}>(나)</span>}
+                      </span>
+                      <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${ROLE_COLORS[u.role]}`}>
                         {ROLES.find(r => r.value === u.role)?.label}
                       </span>
-                    </td>
-                    <td className="py-3 text-gray-600">{u.phone}</td>
-                    <td className="py-3 text-gray-600">{u.email}</td>
-                    <td className="py-3 text-right">
-                      <button onClick={() => openEdit(u)} className="text-blue-500 hover:text-blue-700 p-1 mr-1">
-                        <Pencil size={14} />
-                      </button>
-                      <button onClick={() => handleDelete(u)} disabled={u.id === currentUser?.id}
-                        className="text-red-400 hover:text-red-600 p-1 disabled:opacity-30 disabled:cursor-not-allowed">
-                        <Trash2 size={14} />
-                      </button>
-                    </td>
+                    </div>
+                    <p className="text-xs text-[#7a7a7a] mt-0.5">
+                      {u.username} · {u.phone || '연락처 없음'}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-0.5 shrink-0 ml-3">
+                    <button onClick={() => openEdit(u)} className="p-2" style={{ color: '#0066cc' }}>
+                      <Pencil size={15} />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(u)}
+                      disabled={u.id === currentUser?.id}
+                      className="p-2 disabled:opacity-30 disabled:cursor-not-allowed"
+                      style={{ color: '#ff3b30' }}
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* 데스크탑 테이블 */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[#f0f0f0]">
+                    <th className="text-left py-2.5 text-[#7a7a7a] font-medium">아이디</th>
+                    <th className="text-left py-2.5 text-[#7a7a7a] font-medium">이름</th>
+                    <th className="text-left py-2.5 text-[#7a7a7a] font-medium">권한</th>
+                    <th className="text-left py-2.5 text-[#7a7a7a] font-medium">연락처</th>
+                    <th className="text-left py-2.5 text-[#7a7a7a] font-medium">이메일</th>
+                    <th className="text-right py-2.5 text-[#7a7a7a] font-medium">관리</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {users.map(u => (
+                    <tr key={u.id} className="border-b border-[#f0f0f0] hover:bg-[#f5f5f7]">
+                      <td className="py-3 font-mono text-[#1d1d1f] whitespace-nowrap">{u.username}</td>
+                      <td className="py-3 font-medium text-[#1d1d1f] whitespace-nowrap">
+                        {u.name}
+                        {u.id === currentUser?.id && <span className="ml-1.5 text-xs" style={{ color: '#0066cc' }}>(나)</span>}
+                      </td>
+                      <td className="py-3 whitespace-nowrap">
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${ROLE_COLORS[u.role]}`}>
+                          {ROLES.find(r => r.value === u.role)?.label}
+                        </span>
+                      </td>
+                      <td className="py-3 text-[#333333] whitespace-nowrap">{u.phone}</td>
+                      <td className="py-3 text-[#333333]">{u.email}</td>
+                      <td className="py-3 text-right whitespace-nowrap">
+                        <button onClick={() => openEdit(u)} className="p-1 mr-1" style={{ color: '#0066cc' }}>
+                          <Pencil size={14} />
+                        </button>
+                        <button onClick={() => handleDelete(u)} disabled={u.id === currentUser?.id}
+                          className="p-1 disabled:opacity-30 disabled:cursor-not-allowed" style={{ color: '#ff3b30' }}>
+                          <Trash2 size={14} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 

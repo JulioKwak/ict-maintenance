@@ -1,22 +1,27 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Sparkles, Key, Info } from 'lucide-react'
-import { getBuildings } from '../utils/storage'
+import { buildingsApi } from '../utils/api'
 import { EQUIPMENT_LIST } from '../data/equipment'
+import type { Building } from '../types'
 
 export default function AIGenerate() {
-  const buildings = getBuildings()
+  const [buildings, setBuildings] = useState<Building[]>([])
   const [selectedBuildingId, setSelectedBuildingId] = useState('')
   const [selectedEquipmentId, setSelectedEquipmentId] = useState('')
   const [diagramType, setDiagramType] = useState<'계통도' | '구성도'>('계통도')
   const [apiKey, setApiKey] = useState(localStorage.getItem('ict_openai_key') || '')
   const [showApiKey, setShowApiKey] = useState(false)
 
+  useEffect(() => {
+    buildingsApi.getAll().then(setBuildings).catch(() => {})
+  }, [])
+
   const selectedBuilding = buildings.find(b => b.id === selectedBuildingId)
   const availableEquipment = selectedBuilding
     ? selectedBuilding.equipment
         .filter(e => e.checked)
         .map(e => EQUIPMENT_LIST.find(eq => eq.id === e.equipmentId))
-        .filter(Boolean)
+        .filter((eq): eq is NonNullable<typeof eq> => Boolean(eq))
     : []
 
   const saveApiKey = () => {
@@ -26,7 +31,6 @@ export default function AIGenerate() {
 
   return (
     <div className="max-w-2xl space-y-6">
-      {/* 안내 */}
       <div className="flex items-start gap-3 p-4 bg-blue-50 rounded-lg text-sm text-blue-700">
         <Info size={18} className="shrink-0 mt-0.5" />
         <div>
@@ -36,7 +40,6 @@ export default function AIGenerate() {
         </div>
       </div>
 
-      {/* API 키 설정 */}
       <div className="card">
         <div className="flex items-center gap-2 mb-3">
           <Key size={16} className="text-gray-500" />
@@ -50,11 +53,7 @@ export default function AIGenerate() {
             className="input-field flex-1 font-mono text-sm"
             placeholder="sk-..."
           />
-          <button
-            type="button"
-            onClick={() => setShowApiKey(!showApiKey)}
-            className="btn-secondary text-sm shrink-0"
-          >
+          <button type="button" onClick={() => setShowApiKey(!showApiKey)} className="btn-secondary text-sm shrink-0">
             {showApiKey ? '숨기기' : '표시'}
           </button>
           <button onClick={saveApiKey} className="btn-primary text-sm shrink-0">저장</button>
@@ -62,7 +61,6 @@ export default function AIGenerate() {
         <p className="text-xs text-gray-400 mt-2">API 키는 브라우저 로컬 스토리지에 저장됩니다.</p>
       </div>
 
-      {/* 생성 설정 */}
       <div className="card">
         <div className="flex items-center gap-2 mb-4">
           <Sparkles size={16} className="text-purple-500" />
@@ -93,7 +91,7 @@ export default function AIGenerate() {
                 className="input-field"
               >
                 <option value="">설비를 선택하세요</option>
-                {availableEquipment.map(eq => eq && (
+                {availableEquipment.map(eq => (
                   <option key={eq.id} value={eq.id}>{eq.name}</option>
                 ))}
               </select>
@@ -104,16 +102,10 @@ export default function AIGenerate() {
             <label className="block text-sm font-medium text-gray-700 mb-2">생성 유형</label>
             <div className="flex gap-3">
               {(['계통도', '구성도'] as const).map(type => (
-                <button
-                  key={type}
-                  type="button"
-                  onClick={() => setDiagramType(type)}
+                <button key={type} type="button" onClick={() => setDiagramType(type)}
                   className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                    diagramType === type
-                      ? 'bg-purple-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
+                    diagramType === type ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}>
                   {type}
                 </button>
               ))}
@@ -129,7 +121,7 @@ export default function AIGenerate() {
             {diagramType} 생성
           </button>
 
-          {(!apiKey) && (
+          {!apiKey && (
             <p className="text-xs text-center text-amber-600">API 키를 입력하면 이미지 생성이 가능합니다.</p>
           )}
         </div>

@@ -9,15 +9,23 @@ export default function Login() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setError('')
-    const ok = login(username, password)
-    if (ok) {
-      navigate('/dashboard')
-    } else {
-      setError('아이디 또는 비밀번호가 올바르지 않습니다.')
+    setLoading(true)
+    try {
+      const ok = await login(username, password)
+      if (ok) {
+        navigate('/dashboard')
+      } else {
+        setError('아이디 또는 비밀번호가 올바르지 않습니다.')
+      }
+    } catch {
+      setError('로그인 중 오류가 발생했습니다.')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -60,8 +68,12 @@ export default function Login() {
           {error && (
             <p className="text-sm text-red-600 bg-red-50 rounded-md px-3 py-2">{error}</p>
           )}
-          <button type="submit" className="btn-primary w-full mt-2 py-2.5">
-            로그인
+          <button
+            type="submit"
+            className="btn-primary w-full mt-2 py-2.5 disabled:opacity-60"
+            disabled={loading}
+          >
+            {loading ? '로그인 중...' : '로그인'}
           </button>
         </form>
 

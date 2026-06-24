@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, type FormEvent } from 'react'
+import { useState, useEffect, useMemo, useCallback, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Minus, AlertCircle, CheckCircle2 } from 'lucide-react'
 import {
@@ -8,14 +8,19 @@ import {
   getAdjustmentFactor,
   calcDirectLaborCost,
 } from '../data/equipment'
-import { getTechnicians, addBuilding, generateId } from '../utils/storage'
-import type { Building, TechnicianGrade, EquipmentCategory } from '../types'
+import { buildingsApi, techniciansApi } from '../utils/api'
+import type { Building, Technician, TechnicianGrade, EquipmentCategory } from '../types'
 
 const CATEGORIES: EquipmentCategory[] = ['통신설비', '방송설비', '정보설비', '기타설비']
 
 export default function BuildingRegister() {
   const navigate = useNavigate()
-  const technicians = useMemo(() => getTechnicians(), [])
+  const [technicians, setTechnicians] = useState<Technician[]>([])
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    techniciansApi.getAll().then(setTechnicians).catch(() => {})
+  }, [])
 
   const [name, setName] = useState('')
   const [address, setAddress] = useState('')
@@ -84,12 +89,11 @@ export default function BuildingRegister() {
     }
   }
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     if (!name || !address || area < 5000) return
 
-    const building: Building = {
-      id: generateId(),
+    const buildingData: Omit<Building, 'id' | 'createdAt' | 'updatedAt'> = {
       name,
       address,
       floorArea: area,
@@ -113,11 +117,17 @@ export default function BuildingRegister() {
       techFeeRate,
       totalCost,
       status: '등록',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
     }
-    addBuilding(building)
-    navigate('/buildings')
+
+    setSaving(true)
+    try {
+      await buildingsApi.create(buildingData)
+      navigate('/buildings')
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '등록 중 오류가 발생했습니다.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -349,7 +359,9 @@ export default function BuildingRegister() {
 
       {/* 등록 버튼 */}
       <div className="flex gap-3">
-        <button type="submit" className="btn-primary px-8">건축물 등록</button>
+        <button type="submit" className="btn-primary px-8 disabled:opacity-60" disabled={saving}>
+          {saving ? '등록 중...' : '건축물 등록'}
+        </button>
         <button type="button" onClick={() => navigate('/buildings')} className="btn-secondary px-8">취소</button>
       </div>
     </form>

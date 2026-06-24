@@ -1,9 +1,6 @@
-import { useState, type FormEvent } from 'react'
+import { useState, useEffect, type FormEvent } from 'react'
 import { Plus, Pencil, Trash2, X, Users } from 'lucide-react'
-import {
-  getUsers, addUser, updateUser, deleteUser, generateId,
-  setPassword, deletePassword,
-} from '../utils/storage'
+import { usersApi } from '../utils/api'
 import { useAuth } from '../context/AuthContext'
 import type { User, UserRole } from '../types'
 
@@ -20,16 +17,21 @@ const ROLE_COLORS: Record<UserRole, string> = {
 }
 
 type FormState = { username: string; name: string; phone: string; email: string; role: UserRole; password: string }
-const empty = (): FormState => ({ username: '', name: '', phone: '', email: '', role: 'inspector', password: '' })
+const emptyForm = (): FormState => ({ username: '', name: '', phone: '', email: '', role: 'inspector', password: '' })
 
 export default function UserManagement() {
   const { user: currentUser } = useAuth()
-  const [users, setUsers] = useState(() => getUsers())
+  const [users, setUsers] = useState<User[]>([])
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<User | null>(null)
-  const [form, setForm] = useState<FormState>(empty())
+  const [form, setForm] = useState<FormState>(emptyForm())
+  const [saving, setSaving] = useState(false)
 
-  const openAdd = () => { setEditing(null); setForm(empty()); setShowForm(true) }
+  useEffect(() => {
+    usersApi.getAll().then(setUsers).catch(() => {})
+  }, [])
+
+  const openAdd = () => { setEditing(null); setForm(emptyForm()); setShowForm(true) }
   const openEdit = (u: User) => {
     setEditing(u)
     setForm({ username: u.username, name: u.name, phone: u.phone, email: u.email, role: u.role, password: '' })
@@ -37,41 +39,41 @@ export default function UserManagement() {
   }
   const closeForm = () => setShowForm(false)
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    if (editing) {
-      const updated: User = { ...editing, name: form.name, phone: form.phone, email: form.email, role: form.role }
-      updateUser(updated)
-      if (form.password) setPassword(form.username, form.password)
-    } else {
-      if (!form.password) { alert('비밀번호를 입력하세요.'); return }
-      const existingUsers = getUsers()
-      if (existingUsers.some(u => u.username === form.username)) {
-        alert('이미 사용 중인 아이디입니다.')
-        return
+    setSaving(true)
+    try {
+      if (editing) {
+        const updated = await usersApi.update(editing.id, {
+          name: form.name, phone: form.phone, email: form.email, role: form.role,
+          ...(form.password ? { password: form.password } : {}),
+        })
+        setUsers(prev => prev.map(u => u.id === editing.id ? updated : u))
+      } else {
+        if (!form.password) { alert('비밀번호를 입력하세요.'); return }
+        const created = await usersApi.create({
+          username: form.username, name: form.name, phone: form.phone,
+          email: form.email, role: form.role, password: form.password,
+        })
+        setUsers(prev => [...prev, created])
       }
-      const newUser: User = {
-        id: generateId(),
-        username: form.username,
-        name: form.name,
-        phone: form.phone,
-        email: form.email,
-        role: form.role,
-        createdAt: new Date().toISOString(),
-      }
-      addUser(newUser)
-      setPassword(form.username, form.password)
+      closeForm()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '저장 중 오류가 발생했습니다.')
+    } finally {
+      setSaving(false)
     }
-    setUsers(getUsers())
-    closeForm()
   }
 
-  const handleDelete = (u: User) => {
+  const handleDelete = async (u: User) => {
     if (u.id === currentUser?.id) { alert('현재 로그인 중인 계정은 삭제할 수 없습니다.'); return }
     if (!window.confirm(`"${u.name}" 사용자를 삭제하시겠습니까?`)) return
-    deleteUser(u.id)
-    deletePassword(u.username)
-    setUsers(getUsers())
+    try {
+      await usersApi.delete(u.id)
+      setUsers(prev => prev.filter(x => x.id !== u.id))
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '삭제 중 오류가 발생했습니다.')
+    }
   }
 
   return (
@@ -108,9 +110,7 @@ export default function UserManagement() {
                     <td className="py-3 font-mono text-gray-800">{u.username}</td>
                     <td className="py-3 font-medium text-gray-900">
                       {u.name}
-                      {u.id === currentUser?.id && (
-                        <span className="ml-1.5 text-xs text-blue-500">(나)</span>
-                      )}
+                      {u.id === currentUser?.id && <span className="ml-1.5 text-xs text-blue-500">(나)</span>}
                     </td>
                     <td className="py-3">
                       <span className={`text-xs px-2 py-0.5 rounded-full ${ROLE_COLORS[u.role]}`}>
@@ -123,11 +123,8 @@ export default function UserManagement() {
                       <button onClick={() => openEdit(u)} className="text-blue-500 hover:text-blue-700 p-1 mr-1">
                         <Pencil size={14} />
                       </button>
-                      <button
-                        onClick={() => handleDelete(u)}
-                        disabled={u.id === currentUser?.id}
-                        className="text-red-400 hover:text-red-600 p-1 disabled:opacity-30 disabled:cursor-not-allowed"
-                      >
+                      <button onClick={() => handleDelete(u)} disabled={u.id === currentUser?.id}
+                        className="text-red-400 hover:text-red-600 p-1 disabled:opacity-30 disabled:cursor-not-allowed">
                         <Trash2 size={14} />
                       </button>
                     </td>
@@ -149,70 +146,49 @@ export default function UserManagement() {
             <form onSubmit={handleSubmit} className="p-5 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">아이디 *</label>
-                <input
-                  type="text"
-                  value={form.username}
+                <input type="text" value={form.username}
                   onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
-                  className="input-field"
-                  placeholder="로그인 아이디"
-                  required
-                  disabled={!!editing}
-                />
+                  className="input-field" placeholder="로그인 아이디" required disabled={!!editing} />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">이름 *</label>
-                <input
-                  type="text"
-                  value={form.name}
+                <input type="text" value={form.name}
                   onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                  className="input-field"
-                  placeholder="사용자 이름"
-                  required
-                />
+                  className="input-field" placeholder="사용자 이름" required />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">비밀번호 {editing ? '(변경 시 입력)' : '*'}</label>
-                <input
-                  type="password"
-                  value={form.password}
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  비밀번호 {editing ? '(변경 시 입력)' : '*'}
+                </label>
+                <input type="password" value={form.password}
                   onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
                   className="input-field"
                   placeholder={editing ? '변경하지 않으면 비워두세요' : '비밀번호 입력'}
-                  required={!editing}
-                />
+                  required={!editing} />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">권한 *</label>
-                <select
-                  value={form.role}
-                  onChange={e => setForm(f => ({ ...f, role: e.target.value as UserRole }))}
-                  className="input-field"
-                >
+                <select value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value as UserRole }))}
+                  className="input-field">
                   {ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">연락처</label>
-                <input
-                  type="tel"
-                  value={form.phone}
+                <input type="tel" value={form.phone}
                   onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
-                  className="input-field"
-                  placeholder="010-0000-0000"
-                />
+                  className="input-field" placeholder="010-0000-0000" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">이메일</label>
-                <input
-                  type="email"
-                  value={form.email}
+                <input type="email" value={form.email}
                   onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                  className="input-field"
-                  placeholder="email@example.com"
-                />
+                  className="input-field" placeholder="email@example.com" />
               </div>
               <div className="flex gap-3 pt-2">
-                <button type="submit" className="btn-primary flex-1">{editing ? '수정' : '등록'}</button>
+                <button type="submit" className="btn-primary flex-1 disabled:opacity-60" disabled={saving}>
+                  {saving ? '저장 중...' : editing ? '수정' : '등록'}
+                </button>
                 <button type="button" onClick={closeForm} className="btn-secondary flex-1">취소</button>
               </div>
             </form>

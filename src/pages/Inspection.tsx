@@ -1,18 +1,10 @@
-import { useState, useMemo, useCallback, useRef } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { ChevronDown, ChevronRight, Plus, Trash2, Camera, CheckCircle, XCircle, AlertTriangle, Save } from 'lucide-react'
-import {
-  getBuildings,
-  getInspections,
-  addInspection,
-  updateInspection,
-  updateBuilding,
-  getBuildingById,
-  generateId,
-} from '../utils/storage'
+import { buildingsApi, inspectionsApi, generateId } from '../utils/api'
 import { EQUIPMENT_LIST } from '../data/equipment'
 import { INSPECTION_ITEMS } from '../data/inspectionItems'
 import { useAuth } from '../context/AuthContext'
-import type { InspectionForm, InspectionType, InspectionItem, InspectionLocation, InspectionResult, InspectionPhoto } from '../types'
+import type { Building, InspectionForm, InspectionType, InspectionItem, InspectionLocation, InspectionResult, InspectionPhoto } from '../types'
 import { format } from 'date-fns'
 
 export default function Inspection() {
@@ -24,9 +16,16 @@ export default function Inspection() {
   const [inspectionDate, setInspectionDate] = useState(format(new Date(), 'yyyy-MM-dd'))
   const [activeEquipmentId, setActiveEquipmentId] = useState<string | null>(null)
   const [form, setForm] = useState<InspectionForm | null>(null)
+  const [formExistsInDb, setFormExistsInDb] = useState(false)
+  const [saving, setSaving] = useState(false)
 
-  const buildings = useMemo(() => getBuildings(), [])
-  const inspections = useMemo(() => getInspections(), [])
+  const [buildings, setBuildings] = useState<Building[]>([])
+  const [inspections, setInspections] = useState<InspectionForm[]>([])
+
+  useEffect(() => {
+    buildingsApi.getAll().then(setBuildings).catch(() => {})
+    inspectionsApi.getAll().then(setInspections).catch(() => {})
+  }, [])
 
   const selectedBuilding = useMemo(
     () => buildings.find(b => b.id === selectedBuildingId),
@@ -43,17 +42,16 @@ export default function Inspection() {
     if (!selectedBuildingId) return
 
     if (selectedInspectionId) {
-      // 기존 점검표 불러오기
       const existing = inspections.find(i => i.id === selectedInspectionId)
       if (existing) {
         setForm(existing)
+        setFormExistsInDb(true)
         if (existing.items.length > 0) setActiveEquipmentId(existing.items[0].equipmentId)
         setStep('form')
         return
       }
     }
 
-    // 새 점검표 생성
     const building = buildings.find(b => b.id === selectedBuildingId)
     if (!building) return
 
@@ -92,44 +90,69 @@ export default function Inspection() {
       updatedAt: new Date().toISOString(),
     }
     setForm(newForm)
+    setFormExistsInDb(false)
     if (items.length > 0) setActiveEquipmentId(items[0].equipmentId)
     setStep('form')
   }
 
-  const saveItem = useCallback(() => {
-    if (!form) return
-    const updated: InspectionForm = { ...form, status: '작성중', updatedAt: new Date().toISOString() }
-    if (inspections.find(i => i.id === form.id)) {
-      updateInspection(updated)
-    } else {
-      addInspection(updated)
+  const saveItem = useCallback(async () => {
+    if (!form || saving) return
+    setSaving(true)
+    try {
+      let saved: InspectionForm
+      if (formExistsInDb) {
+        saved = await inspectionsApi.update(form.id, { items: form.items, status: '작성중' })
+      } else {
+        saved = await inspectionsApi.create({
+          buildingId: form.buildingId, inspectionType: form.inspectionType,
+          inspectionDate: form.inspectionDate, items: form.items,
+          status: '작성중', reviewNote: '', createdBy: form.createdBy,
+        })
+        setFormExistsInDb(true)
+      }
+      const building = buildings.find(b => b.id === form.buildingId)
+      if (building && building.status === '등록') {
+        await buildingsApi.update(building.id, { status: '작성중' })
+        setBuildings(prev => prev.map(b => b.id === building.id ? { ...b, status: '작성중' } : b))
+      }
+      setForm(saved)
+      alert('저장되었습니다.')
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '저장 중 오류가 발생했습니다.')
+    } finally {
+      setSaving(false)
     }
-    // 건축물 상태 갱신
-    const building = getBuildingById(form.buildingId)
-    if (building && building.status === '등록') {
-      updateBuilding({ ...building, status: '작성중', updatedAt: new Date().toISOString() })
-    }
-    setForm(updated)
-    alert('저장되었습니다.')
-  }, [form, inspections])
+  }, [form, formExistsInDb, buildings, saving])
 
-  const completeInspection = useCallback(() => {
-    if (!form) return
+  const completeInspection = useCallback(async () => {
+    if (!form || saving) return
     if (!window.confirm('점검을 완료 처리하시겠습니까?')) return
-    const updated: InspectionForm = { ...form, status: '작성완료', updatedAt: new Date().toISOString() }
-    if (inspections.find(i => i.id === form.id)) {
-      updateInspection(updated)
-    } else {
-      addInspection(updated)
+    setSaving(true)
+    try {
+      let saved: InspectionForm
+      if (formExistsInDb) {
+        saved = await inspectionsApi.update(form.id, { items: form.items, status: '작성완료' })
+      } else {
+        saved = await inspectionsApi.create({
+          buildingId: form.buildingId, inspectionType: form.inspectionType,
+          inspectionDate: form.inspectionDate, items: form.items,
+          status: '작성완료', reviewNote: '', createdBy: form.createdBy,
+        })
+        setFormExistsInDb(true)
+      }
+      const building = buildings.find(b => b.id === form.buildingId)
+      if (building) {
+        await buildingsApi.update(building.id, { status: '작성완료' })
+      }
+      setForm(saved)
+      alert('점검이 완료 처리되었습니다.')
+      setStep('select')
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '처리 중 오류가 발생했습니다.')
+    } finally {
+      setSaving(false)
     }
-    const building = getBuildingById(form.buildingId)
-    if (building) {
-      updateBuilding({ ...building, status: '작성완료', updatedAt: new Date().toISOString() })
-    }
-    setForm(updated)
-    alert('점검이 완료 처리되었습니다.')
-    setStep('select')
-  }, [form, inspections])
+  }, [form, formExistsInDb, buildings, saving])
 
   const updateItemLocation = useCallback((
     itemId: string,
@@ -410,7 +433,7 @@ function EquipmentInspectionPanel({
 }: {
   equipmentId: string
   items: InspectionItem[]
-  building: ReturnType<typeof getBuildings>[0]
+  building: Building
   form: InspectionForm
   onUpdateLocation: (itemId: string, locId: string, field: keyof InspectionLocation, value: string | InspectionPhoto[]) => void
   onAddLocation: (itemId: string) => void
@@ -509,7 +532,7 @@ function LocationRow({
   loc: InspectionLocation
   locIdx: number
   item: InspectionItem
-  building: ReturnType<typeof getBuildings>[0]
+  building: Building
   form: InspectionForm
   onUpdate: (itemId: string, locId: string, field: keyof InspectionLocation, value: string | InspectionPhoto[]) => void
   onRemove: (itemId: string, locId: string) => void

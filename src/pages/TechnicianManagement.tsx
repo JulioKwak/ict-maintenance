@@ -1,6 +1,6 @@
-import { useState, useMemo, type FormEvent } from 'react'
+import { useState, useEffect, useMemo, type FormEvent } from 'react'
 import { Plus, Pencil, Trash2, X, HardHat } from 'lucide-react'
-import { getTechnicians, addTechnician, updateTechnician, deleteTechnician, generateId } from '../utils/storage'
+import { techniciansApi } from '../utils/api'
 import type { Technician, TechnicianGrade } from '../types'
 
 const GRADES: TechnicianGrade[] = ['특급기술자', '고급기술자', '중급기술자', '초급기술자']
@@ -12,15 +12,20 @@ const GRADE_COLORS: Record<TechnicianGrade, string> = {
   초급기술자: 'bg-gray-100 text-gray-700',
 }
 
-const empty = (): Omit<Technician, 'id' | 'createdAt'> => ({
+const emptyForm = (): Omit<Technician, 'id' | 'createdAt'> => ({
   name: '', grade: '초급기술자', phone: '', email: '',
 })
 
 export default function TechnicianManagement() {
-  const [technicians, setTechnicians] = useState(() => getTechnicians())
+  const [technicians, setTechnicians] = useState<Technician[]>([])
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<Technician | null>(null)
-  const [form, setForm] = useState(empty())
+  const [form, setForm] = useState(emptyForm())
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    techniciansApi.getAll().then(setTechnicians).catch(() => {})
+  }, [])
 
   const gradeCounts = useMemo(() => {
     const counts: Record<TechnicianGrade, number> = { 특급기술자: 0, 고급기술자: 0, 중급기술자: 0, 초급기술자: 0 }
@@ -28,32 +33,45 @@ export default function TechnicianManagement() {
     return counts
   }, [technicians])
 
-  const openAdd = () => { setEditing(null); setForm(empty()); setShowForm(true) }
-  const openEdit = (t: Technician) => { setEditing(t); setForm({ name: t.name, grade: t.grade, phone: t.phone, email: t.email }); setShowForm(true) }
+  const openAdd = () => { setEditing(null); setForm(emptyForm()); setShowForm(true) }
+  const openEdit = (t: Technician) => {
+    setEditing(t)
+    setForm({ name: t.name, grade: t.grade, phone: t.phone, email: t.email })
+    setShowForm(true)
+  }
   const closeForm = () => setShowForm(false)
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    if (editing) {
-      const updated: Technician = { ...editing, ...form, }
-      updateTechnician(updated)
-    } else {
-      const newT: Technician = { id: generateId(), ...form, createdAt: new Date().toISOString() }
-      addTechnician(newT)
+    setSaving(true)
+    try {
+      if (editing) {
+        const updated = await techniciansApi.update(editing.id, form)
+        setTechnicians(prev => prev.map(t => t.id === editing.id ? updated : t))
+      } else {
+        const created = await techniciansApi.create(form)
+        setTechnicians(prev => [...prev, created])
+      }
+      closeForm()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '저장 중 오류가 발생했습니다.')
+    } finally {
+      setSaving(false)
     }
-    setTechnicians(getTechnicians())
-    closeForm()
   }
 
-  const handleDelete = (t: Technician) => {
+  const handleDelete = async (t: Technician) => {
     if (!window.confirm(`"${t.name}" 기술자를 삭제하시겠습니까?`)) return
-    deleteTechnician(t.id)
-    setTechnicians(getTechnicians())
+    try {
+      await techniciansApi.delete(t.id)
+      setTechnicians(prev => prev.filter(x => x.id !== t.id))
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '삭제 중 오류가 발생했습니다.')
+    }
   }
 
   return (
     <div className="max-w-4xl space-y-4">
-      {/* 등급별 현황 */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {GRADES.map(grade => (
           <div key={grade} className="card flex items-center gap-3">
@@ -68,7 +86,6 @@ export default function TechnicianManagement() {
         ))}
       </div>
 
-      {/* 목록 */}
       <div className="card">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-semibold text-gray-800">기술자 목록 ({technicians.length}명)</h2>
@@ -119,7 +136,6 @@ export default function TechnicianManagement() {
         )}
       </div>
 
-      {/* 등록/수정 모달 */}
       {showForm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
@@ -130,47 +146,30 @@ export default function TechnicianManagement() {
             <form onSubmit={handleSubmit} className="p-5 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">이름 *</label>
-                <input
-                  type="text"
-                  value={form.name}
-                  onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                  className="input-field"
-                  placeholder="기술자 이름"
-                  required
-                />
+                <input type="text" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                  className="input-field" placeholder="기술자 이름" required />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">기술자 등급 *</label>
-                <select
-                  value={form.grade}
-                  onChange={e => setForm(f => ({ ...f, grade: e.target.value as TechnicianGrade }))}
-                  className="input-field"
-                >
+                <select value={form.grade} onChange={e => setForm(f => ({ ...f, grade: e.target.value as TechnicianGrade }))}
+                  className="input-field">
                   {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">연락처</label>
-                <input
-                  type="tel"
-                  value={form.phone}
-                  onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
-                  className="input-field"
-                  placeholder="010-0000-0000"
-                />
+                <input type="tel" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+                  className="input-field" placeholder="010-0000-0000" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">이메일</label>
-                <input
-                  type="email"
-                  value={form.email}
-                  onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                  className="input-field"
-                  placeholder="email@example.com"
-                />
+                <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                  className="input-field" placeholder="email@example.com" />
               </div>
               <div className="flex gap-3 pt-2">
-                <button type="submit" className="btn-primary flex-1">{editing ? '수정' : '등록'}</button>
+                <button type="submit" className="btn-primary flex-1 disabled:opacity-60" disabled={saving}>
+                  {saving ? '저장 중...' : editing ? '수정' : '등록'}
+                </button>
                 <button type="button" onClick={closeForm} className="btn-secondary flex-1">취소</button>
               </div>
             </form>

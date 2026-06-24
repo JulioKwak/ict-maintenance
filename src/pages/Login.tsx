@@ -127,7 +127,7 @@ export default function Login() {
           className="text-center mt-5"
           style={{ fontSize: '12px', color: '#7a7a7a', letterSpacing: '-0.012px' }}
         >
-          초기 계정: admin / admin1234
+          계정 발급은 관리자에게 문의하세요.
         </p>
       </div>
     </div>

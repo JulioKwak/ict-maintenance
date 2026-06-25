@@ -3,8 +3,6 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard,
   Building2,
-  ClipboardList,
-  ClipboardCheck,
   Wrench,
   Sparkles,
   HardHat,
@@ -19,8 +17,6 @@ import { useAuth } from '../context/AuthContext'
 const NAV_ITEMS = [
   { path: '/dashboard',         label: '대시보드',    icon: LayoutDashboard },
   { path: '/building-register', label: '건축물 등록', icon: Building2 },
-  { path: '/inspection',        label: '점검표 작성', icon: ClipboardList },
-  { path: '/inspection-review', label: '점검표 검수', icon: ClipboardCheck },
   { path: '/buildings',         label: '건축물 관리', icon: Wrench },
   { path: '/ai-generate',       label: 'AI 생성',    icon: Sparkles },
   { path: '/technicians',       label: '기술자 관리', icon: HardHat },
@@ -29,9 +25,9 @@ const NAV_ITEMS = [
 
 const MOBILE_TAB_ITEMS = [
   { path: '/dashboard',         label: '대시보드', icon: LayoutDashboard },
-  { path: '/inspection',        label: '점검표',   icon: ClipboardList },
   { path: '/buildings',         label: '건축물',   icon: Wrench },
-  { path: '/inspection-review', label: '검수',     icon: ClipboardCheck },
+  { path: '/ai-generate',       label: 'AI생성',   icon: Sparkles },
+  { path: '/technicians',       label: '기술자',   icon: HardHat },
 ]
 
 export default function Layout({ children }: { children: React.ReactNode }) {

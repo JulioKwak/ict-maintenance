@@ -69,6 +69,15 @@ export const authApi = {
       return null
     }
   },
+
+  async verifyPassword(username: string, password: string): Promise<boolean> {
+    const res = await fetch(`${BASE}/auth/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    })
+    return res.ok
+  },
 }
 
 // ─── Users ────────────────────────────────────────────────────────────────────

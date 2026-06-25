@@ -53,13 +53,13 @@ export default function Login() {
               lineHeight: 1.1,
             }}
           >
-            정보통신설비
+            정보통신설비 유지보수·관리 시스템
           </h1>
           <p
             className="mt-1.5"
             style={{ fontSize: '15px', color: '#7a7a7a', letterSpacing: '-0.022em' }}
           >
-            유지보수·관리 시스템
+            한국전파진흥협회
           </p>
         </div>
 

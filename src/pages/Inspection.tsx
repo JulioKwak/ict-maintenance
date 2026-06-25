@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 import { ChevronDown, ChevronRight, Plus, Trash2, Camera, CheckCircle, XCircle, AlertTriangle, Save } from 'lucide-react'
 import { buildingsApi, inspectionsApi, generateId } from '../utils/api'
 import { EQUIPMENT_LIST } from '../data/equipment'
@@ -9,23 +10,96 @@ import { format } from 'date-fns'
 
 export default function Inspection() {
   const { user } = useAuth()
+  const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
+
+  // URL 파라미터 (BuildingManagement에서 전달)
+  const paramBuildingId = searchParams.get('buildingId') ?? ''
+  const paramInspectionId = searchParams.get('inspectionId') ?? ''
+  const paramDate = searchParams.get('date') ?? format(new Date(), 'yyyy-MM-dd')
+  const paramType = (searchParams.get('type') as InspectionType | null) ?? '기능점검'
+
   const [step, setStep] = useState<'select' | 'form'>('select')
-  const [selectedBuildingId, setSelectedBuildingId] = useState('')
-  const [selectedInspectionId, setSelectedInspectionId] = useState('')
-  const [inspectionType, setInspectionType] = useState<InspectionType>('기능점검')
-  const [inspectionDate, setInspectionDate] = useState(format(new Date(), 'yyyy-MM-dd'))
+  const [selectedBuildingId, setSelectedBuildingId] = useState(paramBuildingId)
+  const [selectedInspectionId, setSelectedInspectionId] = useState(paramInspectionId)
+  const [inspectionType, setInspectionType] = useState<InspectionType>(paramType)
+  const [inspectionDate, setInspectionDate] = useState(paramDate)
   const [activeEquipmentId, setActiveEquipmentId] = useState<string | null>(null)
   const [form, setForm] = useState<InspectionForm | null>(null)
   const [formExistsInDb, setFormExistsInDb] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [loaded, setLoaded] = useState(false)
 
   const [buildings, setBuildings] = useState<Building[]>([])
   const [inspections, setInspections] = useState<InspectionForm[]>([])
 
   useEffect(() => {
-    buildingsApi.getAll().then(setBuildings).catch(() => {})
-    inspectionsApi.getAll().then(setInspections).catch(() => {})
+    Promise.all([
+      buildingsApi.getAll().then(setBuildings),
+      inspectionsApi.getAll().then(setInspections),
+    ]).catch(() => {}).finally(() => setLoaded(true))
   }, [])
+
+  // URL 파라미터가 있을 때 자동 시작
+  const didAutoStart = useRef(false)
+  useEffect(() => {
+    if (didAutoStart.current || !paramBuildingId || !loaded) return
+    didAutoStart.current = true
+
+    if (paramInspectionId) {
+      const existing = inspections.find(i => i.id === paramInspectionId)
+      if (existing) {
+        setForm(existing)
+        setFormExistsInDb(true)
+        if (existing.items.length > 0) setActiveEquipmentId(existing.items[0].equipmentId)
+        setStep('form')
+      }
+      return
+    }
+
+    const building = buildings.find(b => b.id === paramBuildingId)
+    if (!building) return
+
+    const checkedEquipment = building.equipment.filter(e => e.checked)
+    const items: InspectionItem[] = checkedEquipment.flatMap(be => {
+      const template = INSPECTION_ITEMS[be.equipmentId]
+      if (!template) return []
+      const templateItems = paramType === '기능점검' ? template.functional : template.performance
+      return templateItems.map((t): InspectionItem => ({
+        id: generateId(),
+        equipmentId: be.equipmentId,
+        subCategory: t.subCategory,
+        range: t.range,
+        content: t.content,
+        locations: [{
+          id: generateId(),
+          location: '',
+          result: '' as InspectionResult,
+          deficiency: '',
+          opinion: '',
+          photos: [],
+        }],
+      }))
+    })
+
+    const newForm: InspectionForm = {
+      id: generateId(),
+      buildingId: paramBuildingId,
+      inspectionType: paramType,
+      inspectionDate: paramDate,
+      items,
+      status: '작성중',
+      reviewNote: '',
+      createdBy: user?.id ?? '',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }
+    setForm(newForm)
+    setFormExistsInDb(false)
+    if (items.length > 0) setActiveEquipmentId(items[0].equipmentId)
+    setStep('form')
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded])
 
   const selectedBuilding = useMemo(
     () => buildings.find(b => b.id === selectedBuildingId),
@@ -146,7 +220,7 @@ export default function Inspection() {
       }
       setForm(saved)
       alert('점검이 완료 처리되었습니다.')
-      setStep('select')
+      navigate('/buildings')
     } catch (err) {
       alert(err instanceof Error ? err.message : '처리 중 오류가 발생했습니다.')
     } finally {
@@ -388,7 +462,7 @@ export default function Inspection() {
                 )}
               </p>
             </div>
-            <button onClick={() => setStep('select')} className="text-xs text-gray-400 hover:text-gray-600 shrink-0 mt-0.5">
+            <button onClick={() => navigate(-1)} className="text-xs shrink-0 mt-0.5" style={{ color: '#7a7a7a' }}>
               ← 목록
             </button>
           </div>

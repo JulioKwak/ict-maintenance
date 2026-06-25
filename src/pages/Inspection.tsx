@@ -717,20 +717,6 @@ function LocationRow({
           </div>
         </div>
 
-        {loc.result === '미흡' && (
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">미흡 사항</label>
-            <textarea
-              value={loc.deficiency}
-              onChange={e => onUpdate(item.id, loc.id, 'deficiency', e.target.value)}
-              className="input-field text-sm resize-none"
-              rows={2}
-              placeholder="미흡 사항을 입력하세요"
-              disabled={readonly}
-            />
-          </div>
-        )}
-
         <div>
           <label className="block text-xs text-gray-500 mb-1">점검 의견</label>
           <textarea

@@ -283,9 +283,6 @@ export default function InspectionReview() {
                                   'bg-gray-100 text-gray-400'
                                 }`}>{loc.result || '미입력'}</span>
                               </div>
-                              {loc.result === '미흡' && loc.deficiency && (
-                                <p className="text-xs text-red-600 mb-1">미흡: {loc.deficiency}</p>
-                              )}
                               {loc.opinion && <p className="text-xs" style={{ color: '#7a7a7a' }}>의견: {loc.opinion}</p>}
                               {loc.photos.length > 0 && (
                                 <div className="flex gap-1.5 mt-2">

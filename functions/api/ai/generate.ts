@@ -90,11 +90,10 @@ export const onRequestPost: PagesFunction<Env, string, Data> = async ({ request,
       'Authorization': `Bearer ${env.OPENAI_API_KEY}`,
     },
     body: JSON.stringify({
-      model: 'dall-e-3',
+      model: 'dall-e-2',
       prompt,
       n: 1,
-      size: '1792x1024',
-      quality: 'hd',
+      size: '1024x1024',
     }),
   })
 

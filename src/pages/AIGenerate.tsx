@@ -16,19 +16,10 @@ function getToken(): string {
   return localStorage.getItem('ict_token') ?? ''
 }
 
-function formatEquipmentForRequest(building: Building) {
-  return building.equipment
-    .filter(e => e.checked)
-    .map(e => {
-      const info = EQUIPMENT_LIST.find(eq => eq.id === e.equipmentId)
-      return info ? { category: info.category, name: info.name, quantity: e.quantity } : null
-    })
-    .filter((e): e is NonNullable<typeof e> => e !== null)
-}
-
 export default function AIGenerate() {
   const [buildings, setBuildings] = useState<Building[]>([])
   const [selectedBuildingId, setSelectedBuildingId] = useState('')
+  const [selectedEquipmentId, setSelectedEquipmentId] = useState('')
   const [buildingCategory, setBuildingCategory] = useState<BuildingCategory>('단독건물')
   const [diagramType, setDiagramType] = useState<DiagramType>('계통도')
   const [generating, setGenerating] = useState(false)
@@ -42,7 +33,27 @@ export default function AIGenerate() {
   const diagramKey = `${buildingCategory}_${diagramType}`
   const selectedBuilding = buildings.find(b => b.id === selectedBuildingId)
 
+  const availableEquipment = selectedBuilding
+    ? selectedBuilding.equipment
+        .filter(e => e.checked)
+        .map(e => {
+          const info = EQUIPMENT_LIST.find(eq => eq.id === e.equipmentId)
+          return info ? { ...info, quantity: e.quantity } : null
+        })
+        .filter((e): e is NonNullable<typeof e> => e !== null)
+    : []
+
+  const selectedEquipmentInfo = availableEquipment.find(e => e.id === selectedEquipmentId)
+
+  const handleBuildingChange = (id: string) => {
+    setSelectedBuildingId(id)
+    setSelectedEquipmentId('')
+    setResultUrl('')
+    setError('')
+  }
+
   const handleGenerate = async () => {
+    if (!selectedBuildingId || !selectedEquipmentId) return
     setGenerating(true)
     setError('')
     setResultUrl('')
@@ -60,7 +71,9 @@ export default function AIGenerate() {
           buildingAddress: selectedBuilding?.address,
           floorArea: selectedBuilding?.floorArea,
           technicianGrade: selectedBuilding?.technicianGrade,
-          equipmentList: selectedBuilding ? formatEquipmentForRequest(selectedBuilding) : [],
+          equipmentList: selectedEquipmentInfo
+            ? [{ category: selectedEquipmentInfo.category, name: selectedEquipmentInfo.name, quantity: selectedEquipmentInfo.quantity }]
+            : [],
         }),
       })
       const data = await res.json() as { url?: string; b64?: string; error?: string }
@@ -76,7 +89,7 @@ export default function AIGenerate() {
     }
   }
 
-  const equipmentPreview = selectedBuilding ? formatEquipmentForRequest(selectedBuilding) : []
+  const canGenerate = !!selectedBuildingId && !!selectedEquipmentId && !generating
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -84,8 +97,7 @@ export default function AIGenerate() {
         <Info size={18} className="shrink-0 mt-0.5" />
         <div>
           <p className="font-medium mb-1">AI 계통도 / 구성도 생성</p>
-          <p>건물 유형과 도면 종류를 선택하면 OpenAI DALL-E 3로 이미지를 자동 생성합니다.</p>
-          <p className="mt-1 text-blue-600">건축물을 선택하면 설비 데이터가 프롬프트에 반영됩니다.</p>
+          <p>건물 유형, 도면 종류, 대상 설비를 선택하면 OpenAI gpt-image-2로 이미지를 자동 생성합니다.</p>
         </div>
       </div>
 
@@ -137,46 +149,68 @@ export default function AIGenerate() {
 
         {/* 건축물 선택 */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">건축물 선택</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            건축물 선택 <span className="text-red-500">*</span>
+          </label>
           <select
             value={selectedBuildingId}
-            onChange={e => setSelectedBuildingId(e.target.value)}
+            onChange={e => handleBuildingChange(e.target.value)}
             className="input-field"
           >
-            <option value="">선택 안 함 (기본 템플릿 사용)</option>
+            <option value="">건축물을 선택하세요</option>
             {buildings.map(b => (
               <option key={b.id} value={b.id}>{b.name}</option>
             ))}
           </select>
         </div>
 
-        {/* 선택된 건물 데이터 미리보기 */}
+        {/* 대상 설비 선택 */}
         {selectedBuilding && (
-          <div className="bg-[#f5f5f7] rounded-[11px] px-4 py-3 text-sm space-y-1.5">
-            <p className="font-medium" style={{ color: '#1d1d1f' }}>{selectedBuilding.name}</p>
-            <p style={{ color: '#6e6e73' }}>{selectedBuilding.address}</p>
-            <p style={{ color: '#6e6e73' }}>
-              연면적 {selectedBuilding.floorArea.toLocaleString()}㎡ · {selectedBuilding.technicianGrade}
-            </p>
-            {equipmentPreview.length > 0 && (
-              <p style={{ color: '#6e6e73' }}>
-                대상설비 {equipmentPreview.length}종:{' '}
-                <span style={{ color: '#1d1d1f' }}>
-                  {equipmentPreview.slice(0, 3).map(e => e.name).join(', ')}
-                  {equipmentPreview.length > 3 && ` 외 ${equipmentPreview.length - 3}종`}
-                </span>
-              </p>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              대상 설비 선택 <span className="text-red-500">*</span>
+            </label>
+            {availableEquipment.length === 0 ? (
+              <p className="text-sm text-gray-400 px-1">등록된 대상 설비가 없습니다.</p>
+            ) : (
+              <select
+                value={selectedEquipmentId}
+                onChange={e => { setSelectedEquipmentId(e.target.value); setResultUrl(''); setError('') }}
+                className="input-field"
+              >
+                <option value="">설비를 선택하세요</option>
+                {availableEquipment.map(eq => (
+                  <option key={eq.id} value={eq.id}>
+                    [{eq.category}] {eq.name}{eq.quantity > 1 ? ` × ${eq.quantity}` : ''}
+                  </option>
+                ))}
+              </select>
             )}
           </div>
         )}
 
-        {/* 현재 선택 요약 */}
-        <div className="px-4 py-2.5 bg-[#f5f5f7] rounded-[11px] text-sm" style={{ color: '#6e6e73' }}>
-          생성 유형:{' '}
-          <span className="font-semibold" style={{ color: '#1d1d1f' }}>
-            {CATEGORY_LABELS[buildingCategory]} {diagramType}
-          </span>
-        </div>
+        {/* 선택 요약 */}
+        {selectedEquipmentInfo && (
+          <div className="px-4 py-2.5 bg-[#f5f5f7] rounded-[11px] text-sm space-y-0.5">
+            <p style={{ color: '#6e6e73' }}>
+              생성 유형:{' '}
+              <span className="font-semibold" style={{ color: '#1d1d1f' }}>
+                {CATEGORY_LABELS[buildingCategory]} {diagramType}
+              </span>
+            </p>
+            <p style={{ color: '#6e6e73' }}>
+              대상 설비:{' '}
+              <span className="font-semibold" style={{ color: '#1d1d1f' }}>
+                {selectedEquipmentInfo.name}
+              </span>
+              <span style={{ color: '#6e6e73' }}> ({selectedEquipmentInfo.category})</span>
+            </p>
+            <p style={{ color: '#6e6e73' }}>
+              건축물:{' '}
+              <span style={{ color: '#1d1d1f' }}>{selectedBuilding?.name}</span>
+            </p>
+          </div>
+        )}
 
         {error && (
           <p className="text-sm text-red-600 bg-red-50 rounded-[11px] px-4 py-2.5">{error}</p>
@@ -184,8 +218,8 @@ export default function AIGenerate() {
 
         <button
           onClick={handleGenerate}
-          disabled={generating}
-          className="btn-primary w-full flex items-center justify-center gap-2 disabled:opacity-60"
+          disabled={!canGenerate}
+          className="btn-primary w-full flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {generating ? (
             <>
@@ -195,7 +229,9 @@ export default function AIGenerate() {
           ) : (
             <>
               <Sparkles size={16} />
-              {CATEGORY_LABELS[buildingCategory]} {diagramType} 생성
+              {selectedEquipmentInfo
+                ? `${selectedEquipmentInfo.name} ${diagramType} 생성`
+                : `${CATEGORY_LABELS[buildingCategory]} ${diagramType} 생성`}
             </>
           )}
         </button>
@@ -208,7 +244,7 @@ export default function AIGenerate() {
             <h2 className="font-semibold" style={{ color: '#1d1d1f' }}>생성 결과</h2>
             <a
               href={resultUrl}
-              download={`${diagramKey}_${Date.now()}.png`}
+              download={`${selectedEquipmentInfo?.name ?? diagramKey}_${Date.now()}.png`}
               {...(!resultUrl.startsWith('data:') && { target: '_blank', rel: 'noopener noreferrer' })}
               className="btn-secondary text-sm flex items-center gap-1.5"
             >
@@ -218,11 +254,11 @@ export default function AIGenerate() {
           </div>
           <img
             src={resultUrl}
-            alt={`${CATEGORY_LABELS[buildingCategory]} ${diagramType} 생성 결과`}
+            alt={`${selectedEquipmentInfo?.name ?? ''} ${diagramType} 생성 결과`}
             className="w-full rounded-xl border border-gray-200"
           />
           <p className="text-xs text-center" style={{ color: '#6e6e73' }}>
-            DALL-E 3 생성 이미지 · 링크는 1시간 후 만료됩니다
+            OpenAI gpt-image-2 생성 이미지
           </p>
         </div>
       )}

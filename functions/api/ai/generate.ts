@@ -95,7 +95,6 @@ export const onRequestPost: PagesFunction<Env, string, Data> = async ({ request,
       n: 1,
       size: '1792x1024',
       quality: 'hd',
-      response_format: 'url',
     }),
   })
 

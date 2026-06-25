@@ -16,7 +16,7 @@ export const onRequest: PagesFunction<Env, string, Data> = async (ctx) => {
 
   const url = new URL(request.url)
   const isApiPath = url.pathname.startsWith('/api/')
-  const isPublicPath = url.pathname === '/api/auth/login'
+  const isPublicPath = url.pathname === '/api/auth/login' || url.pathname === '/api/auth/verify'
 
   if (isApiPath && !isPublicPath) {
     const token = request.headers.get('Authorization')?.replace('Bearer ', '').trim() ?? ''

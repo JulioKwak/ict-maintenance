@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import { CheckCircle, AlertTriangle, ChevronRight, MessageSquare, ArrowLeft } from 'lucide-react'
+import { CheckCircle, AlertTriangle, ChevronRight, MessageSquare, ArrowLeft, X } from 'lucide-react'
 import { inspectionsApi, buildingsApi } from '../utils/api'
 import { EQUIPMENT_LIST } from '../data/equipment'
 import type { InspectionForm, Building } from '../types'
@@ -17,6 +17,7 @@ export default function InspectionReview() {
   const [reviewNote, setReviewNote] = useState('')
   const [saving, setSaving] = useState(false)
   const didAutoSelect = useRef(false)
+  const [zoomPhoto, setZoomPhoto] = useState<string | null>(null)
 
   useEffect(() => {
     Promise.all([
@@ -285,9 +286,16 @@ export default function InspectionReview() {
                               </div>
                               {loc.opinion && <p className="text-xs" style={{ color: '#7a7a7a' }}>의견: {loc.opinion}</p>}
                               {loc.photos.length > 0 && (
-                                <div className="flex gap-1.5 mt-2">
+                                <div className="flex flex-wrap gap-1.5 mt-2">
                                   {loc.photos.map(p => (
-                                    <img key={p.id} src={p.dataUrl} alt="" className="w-14 h-14 object-cover rounded" />
+                                    <img
+                                      key={p.id}
+                                      src={p.dataUrl}
+                                      alt=""
+                                      className="w-14 h-14 object-cover rounded cursor-pointer"
+                                      style={{ border: '1px solid #e0e0e0' }}
+                                      onClick={() => setZoomPhoto(p.dataUrl)}
+                                    />
                                   ))}
                                 </div>
                               )}
@@ -303,6 +311,29 @@ export default function InspectionReview() {
           )}
         </div>
       </div>
+
+      {/* 사진 확대 팝업 */}
+      {zoomPhoto && (
+        <div
+          className="fixed inset-0 bg-black/85 flex items-center justify-center z-50 p-4"
+          onClick={() => setZoomPhoto(null)}
+        >
+          <button
+            className="absolute top-4 right-4 p-2 rounded-full"
+            style={{ backgroundColor: 'rgba(255,255,255,0.15)', color: '#ffffff' }}
+            onClick={() => setZoomPhoto(null)}
+          >
+            <X size={22} />
+          </button>
+          <img
+            src={zoomPhoto}
+            alt="점검사진 확대"
+            className="max-w-full max-h-full rounded-lg"
+            style={{ maxWidth: '90vw', maxHeight: '85vh', objectFit: 'contain' }}
+            onClick={e => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   )
 }

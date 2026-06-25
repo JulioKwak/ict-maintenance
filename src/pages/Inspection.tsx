@@ -636,18 +636,22 @@ function LocationRow({
           ctx.drawImage(img, 0, 0, W, H)
 
           // 보드판 오버레이
-          const boardH = Math.round(H * 0.22)
+          const boardH = Math.round(H * 0.28)
           ctx.fillStyle = 'rgba(0,0,0,0.72)'
           ctx.fillRect(0, H - boardH, W, boardH)
 
+          const resultLine = loc.opinion
+            ? `점검결과: ${loc.result || '-'} / ${loc.opinion}`
+            : `점검결과: ${loc.result || '-'}`
           const lines = [
             `건축물명: ${building.name}`,
             `주소: ${building.address}`,
             `설비분류: ${eq?.category ?? ''}`,
             `설비명: ${eq?.name ?? ''}`,
+            `점검항목: ${item.subCategory} / ${item.content}`,
             `점검세부위치: ${loc.location || ''}`,
             `점검일자: ${form.inspectionDate}`,
-            `점검결과: ${loc.result || '-'}`,
+            resultLine,
           ]
           const lineH = boardH / (lines.length + 0.5)
           ctx.fillStyle = '#ffffff'

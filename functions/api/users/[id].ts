@@ -1,5 +1,6 @@
 import type { PagesFunction } from '@cloudflare/workers-types'
 import type { Env, Data } from '../../_types'
+import { hashPassword } from '../auth/_password'
 
 export const onRequestPut: PagesFunction<Env, string, Data> = async ({ request, env, params }) => {
   const id = params.id as string
@@ -20,9 +21,10 @@ export const onRequestPut: PagesFunction<Env, string, Data> = async ({ request, 
       .bind(name, phone, email, role, id),
   ]
   if (body.password) {
+    const hashed = await hashPassword(body.password)
     stmts.push(
       env.DB.prepare('INSERT OR REPLACE INTO user_passwords (username, password) VALUES (?,?)')
-        .bind(row.username, body.password)
+        .bind(row.username, hashed)
     )
   }
 

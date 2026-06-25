@@ -1,5 +1,6 @@
 import type { PagesFunction } from '@cloudflare/workers-types'
 import type { Env, Data } from '../../_types'
+import { verifyPassword } from './_password'
 
 export const onRequestPost: PagesFunction<Env, string, Data> = async ({ request, env }) => {
   try {
@@ -7,12 +8,14 @@ export const onRequestPost: PagesFunction<Env, string, Data> = async ({ request,
     if (!username || !password) return Response.json({ error: 'Required' }, { status: 400 })
 
     const row = await env.DB.prepare(
-      'SELECT COUNT(*) as cnt FROM user_passwords WHERE username = ? AND password = ?'
-    ).bind(username, password).first<{ cnt: number }>()
+      'SELECT password FROM user_passwords WHERE username = ?'
+    ).bind(username).first<{ password: string }>()
 
-    if (!row || row.cnt === 0) {
-      return Response.json({ error: 'Invalid password' }, { status: 401 })
-    }
+    if (!row) return Response.json({ error: 'Invalid password' }, { status: 401 })
+
+    const valid = await verifyPassword(password, row.password)
+    if (!valid) return Response.json({ error: 'Invalid password' }, { status: 401 })
+
     return Response.json({ ok: true })
   } catch (e) {
     return Response.json({ error: String(e) }, { status: 500 })

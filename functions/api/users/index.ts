@@ -1,5 +1,6 @@
 import type { PagesFunction } from '@cloudflare/workers-types'
 import type { Env, Data } from '../../_types'
+import { hashPassword } from '../auth/_password'
 
 function genId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
@@ -37,6 +38,7 @@ export const onRequestPost: PagesFunction<Env, string, Data> = async ({ request,
 
   const id = genId()
   const now = new Date().toISOString()
+  const hashed = await hashPassword(password)
 
   await env.DB.batch([
     env.DB.prepare(
@@ -44,7 +46,7 @@ export const onRequestPost: PagesFunction<Env, string, Data> = async ({ request,
     ).bind(id, username, name, phone, email, role, now),
     env.DB.prepare(
       'INSERT OR REPLACE INTO user_passwords (username, password) VALUES (?,?)'
-    ).bind(username, password),
+    ).bind(username, hashed),
   ])
 
   return Response.json({ id, username, name, phone, email, role, createdAt: now }, { status: 201 })

@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Building2, Search, ChevronRight, Trash2, Download, ClipboardCheck, Plus, FileText, X, ClipboardList } from 'lucide-react'
-import { buildingsApi, inspectionsApi } from '../utils/api'
+import { buildingsApi, inspectionsApi, techniciansApi } from '../utils/api'
 import { EQUIPMENT_LIST, calcDirectLaborCost } from '../data/equipment'
-import type { Building, BuildingStatus, InspectionForm, InspectionType } from '../types'
+import type { Building, BuildingStatus, InspectionForm, InspectionType, Technician } from '../types'
 import PasswordConfirmModal from '../components/PasswordConfirmModal'
 import { format } from 'date-fns'
 import * as XLSX from 'xlsx'
@@ -28,6 +28,7 @@ export default function BuildingManagement() {
   const navigate = useNavigate()
   const [buildings, setBuildings] = useState<Building[]>([])
   const [allInspections, setAllInspections] = useState<InspectionForm[]>([])
+  const [technicians, setTechnicians] = useState<Technician[]>([])
   const [search, setSearch] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<BuildingStatus | '전체'>('전체')
@@ -48,6 +49,7 @@ export default function BuildingManagement() {
   useEffect(() => {
     buildingsApi.getAll().then(setBuildings).catch(() => {})
     inspectionsApi.getAll().then(setAllInspections).catch(() => {})
+    techniciansApi.getAll().then(setTechnicians).catch(() => {})
   }, [])
 
   const filtered = useMemo(() => buildings.filter(b => {
@@ -205,7 +207,17 @@ export default function BuildingManagement() {
                     <h2 className="text-lg font-bold" style={{ color: '#1d1d1f' }}>{selected.name}</h2>
                     <p className="text-sm mt-1" style={{ color: '#7a7a7a' }}>{selected.address}</p>
                   </div>
-                  <span className={STATUS_COLORS[selected.status]}>{STATUS_LABELS[selected.status]}</span>
+                  <div className="flex flex-col items-end gap-1.5 shrink-0 ml-3">
+                    <span className={STATUS_COLORS[selected.status]}>{STATUS_LABELS[selected.status]}</span>
+                    {(() => {
+                      const tech = technicians.find(t => t.id === selected.assignedTechnicianId)
+                      return tech ? (
+                        <span className="text-xs" style={{ color: '#7a7a7a' }}>
+                          {tech.grade} · {tech.name}
+                        </span>
+                      ) : null
+                    })()}
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 pt-4" style={{ borderTop: '1px solid #f0f0f0' }}>

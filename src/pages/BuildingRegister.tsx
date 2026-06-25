@@ -91,7 +91,7 @@ export default function BuildingRegister() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    if (!name || !address || area < 5000) return
+    if (!name || !address || area < 5000 || !assignedTechnicianId) return
 
     const buildingData: Omit<Building, 'id' | 'createdAt' | 'updatedAt'> = {
       name,
@@ -179,11 +179,12 @@ export default function BuildingRegister() {
             )}
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">담당 기술자</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">담당 기술자 <span className="text-red-500">*</span></label>
             <select
               value={assignedTechnicianId}
               onChange={e => setAssignedTechnicianId(e.target.value)}
               className="input-field"
+              required
             >
               <option value="">기술자를 선택하세요</option>
               {technicians.map(t => (

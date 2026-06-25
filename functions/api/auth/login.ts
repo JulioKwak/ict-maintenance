@@ -1,6 +1,27 @@
 import type { PagesFunction } from '@cloudflare/workers-types'
 import type { Env, Data } from '../../_types'
-import { verifyPassword, hashPassword } from './_password'
+
+const ITERATIONS = 100_000
+
+async function hashPassword(password: string): Promise<string> {
+  const salt = crypto.getRandomValues(new Uint8Array(16))
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits'])
+  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt, iterations: ITERATIONS, hash: 'SHA-256' }, key, 256)
+  const toHex = (buf: Uint8Array) => Array.from(buf).map(b => b.toString(16).padStart(2, '0')).join('')
+  return `${toHex(salt)}:${toHex(new Uint8Array(bits))}`
+}
+
+async function verifyPassword(input: string, stored: string): Promise<boolean> {
+  if (!stored.includes(':') || stored.length < 60) {
+    return input === stored
+  }
+  const [saltHex, hashHex] = stored.split(':')
+  const salt = new Uint8Array(saltHex.match(/.{2}/g)!.map(b => parseInt(b, 16)))
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(input), 'PBKDF2', false, ['deriveBits'])
+  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt, iterations: ITERATIONS, hash: 'SHA-256' }, key, 256)
+  const computed = Array.from(new Uint8Array(bits)).map(b => b.toString(16).padStart(2, '0')).join('')
+  return computed === hashHex
+}
 
 export const onRequestPost: PagesFunction<Env, string, Data> = async ({ request, env }) => {
   const { username, password } = await request.json<{ username: string; password: string }>()
@@ -22,7 +43,7 @@ export const onRequestPost: PagesFunction<Env, string, Data> = async ({ request,
     return Response.json({ error: '아이디 또는 비밀번호가 올바르지 않습니다.' }, { status: 401 })
   }
 
-  // 평문으로 저장된 경우 자동으로 해시로 마이그레이션
+  // 평문 비밀번호를 해시로 자동 마이그레이션
   if (!pwRow.password.includes(':') || pwRow.password.length < 60) {
     const hashed = await hashPassword(password)
     await env.DB.prepare('UPDATE user_passwords SET password = ? WHERE username = ?')

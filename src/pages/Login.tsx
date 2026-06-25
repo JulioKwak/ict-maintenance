@@ -1,7 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { Wifi } from 'lucide-react'
 
 export default function Login() {
   const { login } = useAuth()
@@ -38,12 +37,12 @@ export default function Login() {
 
         {/* 로고 & 타이틀 */}
         <div className="text-center mb-8">
-          <div
-            className="inline-flex items-center justify-center w-[68px] h-[68px] mb-5"
-            style={{ backgroundColor: '#0066cc', borderRadius: '18px' }}
-          >
-            <Wifi className="text-white" size={32} />
-          </div>
+          <img
+            src="/logo.png"
+            alt="로고"
+            className="mx-auto mb-5"
+            style={{ height: '68px', width: 'auto', objectFit: 'contain' }}
+          />
           <h1
             className="font-semibold"
             style={{

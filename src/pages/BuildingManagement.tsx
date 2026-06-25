@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Building2, Search, ChevronRight, Trash2, Download, ClipboardCheck, Plus, FileText, X, ClipboardList } from 'lucide-react'
 import { buildingsApi, inspectionsApi } from '../utils/api'
-import { EQUIPMENT_LIST } from '../data/equipment'
+import { EQUIPMENT_LIST, calcDirectLaborCost } from '../data/equipment'
 import type { Building, BuildingStatus, InspectionForm, InspectionType } from '../types'
 import PasswordConfirmModal from '../components/PasswordConfirmModal'
 import { format } from 'date-fns'
@@ -41,6 +41,9 @@ export default function BuildingManagement() {
   const [pwModal, setPwModal] = useState<{ open: boolean; title: string; onConfirm: () => Promise<void> }>({
     open: false, title: '', onConfirm: async () => {},
   })
+
+  // 직접인건비 상세 팝업
+  const [showLaborPopup, setShowLaborPopup] = useState(false)
 
   useEffect(() => {
     buildingsApi.getAll().then(setBuildings).catch(() => {})
@@ -252,25 +255,106 @@ export default function BuildingManagement() {
               </div>
 
               {/* 대가산정 요약 */}
-              <div className="card">
-                <h3 className="font-semibold mb-3" style={{ color: '#1d1d1f' }}>대가산정 요약</h3>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  {[
-                    ['여비', `${selected.directCost.travel.toLocaleString()}원`],
-                    ['차량운행비', `${selected.directCost.vehicle.toLocaleString()}원`],
-                    ['현장소요경비', `${selected.directCost.fieldExpense.toLocaleString()}원`],
-                    [`제경비 (${selected.overheadRate}%)`, ''],
-                  ].map(([label, value]) => (
-                    <div key={label} className="flex justify-between py-1" style={{ borderBottom: '1px solid #f0f0f0' }}>
-                      <span style={{ color: '#7a7a7a' }}>{label}</span>
-                      <span style={{ color: '#1d1d1f' }}>{value}</span>
+              {(() => {
+                const eqItems = selected.equipment.filter(e => e.checked).map(be => ({
+                  equipment: EQUIPMENT_LIST.find(eq => eq.id === be.equipmentId)!,
+                  quantity: be.quantity,
+                })).filter(x => x.equipment)
+                const directLaborCost = Math.round(calcDirectLaborCost(eqItems, selected.adjustmentFactor, selected.wageRate))
+                const directExpense = selected.directCost.travel + selected.directCost.vehicle + selected.directCost.fieldExpense
+                const overheadCost = Math.round(directLaborCost * selected.overheadRate / 100)
+                const techFee = Math.round((directLaborCost + overheadCost) * selected.techFeeRate / 100)
+                const vat = Math.round((directLaborCost + directExpense + overheadCost + techFee) * 0.1)
+                const fmt = (n: number) => Math.round(n).toLocaleString('ko-KR') + '원'
+                return (
+                  <div className="card">
+                    <h3 className="font-semibold mb-3" style={{ color: '#1d1d1f' }}>대가산정 요약</h3>
+                    <div className="text-sm space-y-0">
+                      {[
+                        { label: '직접인건비', value: fmt(directLaborCost), clickable: true },
+                        { label: `직접경비 (여비 + 차량운행비 + 현장소요경비)`, value: fmt(directExpense) },
+                        { label: `제경비 (${selected.overheadRate}%)`, value: fmt(overheadCost) },
+                        { label: `기술료 (${selected.techFeeRate}%)`, value: fmt(techFee) },
+                        { label: '부가가치세 (10%)', value: fmt(vat) },
+                      ].map(({ label, value, clickable }) => (
+                        <div key={label} className="flex justify-between items-center py-2" style={{ borderBottom: '1px solid #f0f0f0' }}>
+                          {clickable ? (
+                            <button
+                              onClick={() => setShowLaborPopup(true)}
+                              className="text-left underline decoration-dotted"
+                              style={{ color: '#0066cc', fontSize: '14px' }}
+                            >
+                              {label}
+                            </button>
+                          ) : (
+                            <span style={{ color: '#7a7a7a' }}>{label}</span>
+                          )}
+                          <span className="font-medium ml-4 shrink-0" style={{ color: '#1d1d1f' }}>{value}</span>
+                        </div>
+                      ))}
+                      <div className="flex justify-between py-2.5 font-bold" style={{ color: '#0066cc' }}>
+                        <span>총 대가</span>
+                        <span>{selected.totalCost.toLocaleString()}원</span>
+                      </div>
                     </div>
-                  ))}
-                  <div className="col-span-2 flex justify-between py-2 font-bold" style={{ color: '#0066cc' }}>
-                    <span>총 대가</span><span>{selected.totalCost.toLocaleString()}원</span>
+
+                    {/* 직접인건비 상세 팝업 */}
+                    {showLaborPopup && (
+                      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                        <div className="bg-white w-full max-w-lg max-h-[80vh] flex flex-col" style={{ borderRadius: '18px', border: '1px solid #e0e0e0' }}>
+                          <div className="flex items-center justify-between p-5 shrink-0" style={{ borderBottom: '1px solid #f0f0f0' }}>
+                            <div>
+                              <h3 className="font-semibold" style={{ color: '#1d1d1f', fontSize: '15px' }}>직접인건비 세부 산정내역</h3>
+                              <p className="text-xs mt-0.5" style={{ color: '#7a7a7a' }}>
+                                노임단가 {selected.wageRate.toLocaleString()}원 · 조정계수 {selected.adjustmentFactor}
+                              </p>
+                            </div>
+                            <button onClick={() => setShowLaborPopup(false)} style={{ color: '#7a7a7a' }}><X size={20} /></button>
+                          </div>
+                          <div className="overflow-y-auto p-4 space-y-2">
+                            <div className="grid grid-cols-4 gap-2 px-3 py-1.5 text-xs font-medium" style={{ color: '#7a7a7a' }}>
+                              <span className="col-span-2">설비명</span>
+                              <span className="text-right">기준인원</span>
+                              <span className="text-right">금액</span>
+                            </div>
+                            {eqItems.map(({ equipment, quantity }) => {
+                              const personnel = equipment.applyAdjustment
+                                ? quantity * equipment.standardPersonnel * selected.adjustmentFactor
+                                : quantity * equipment.standardPersonnel
+                              const cost = Math.round(personnel * selected.wageRate)
+                              return (
+                                <div key={equipment.id} className="grid grid-cols-4 gap-2 px-3 py-2 rounded-[10px] text-sm" style={{ backgroundColor: '#f5f5f7' }}>
+                                  <div className="col-span-2">
+                                    <p style={{ color: '#1d1d1f' }}>{equipment.name}</p>
+                                    {!equipment.applyAdjustment && (
+                                      <p className="text-xs" style={{ color: '#7a7a7a' }}>{quantity}{equipment.unit} · 조정계수 미적용</p>
+                                    )}
+                                    {equipment.applyAdjustment && quantity > 1 && (
+                                      <p className="text-xs" style={{ color: '#7a7a7a' }}>{quantity}{equipment.unit}</p>
+                                    )}
+                                  </div>
+                                  <span className="text-right text-xs self-center" style={{ color: '#7a7a7a' }}>
+                                    {personnel.toFixed(2)}인
+                                  </span>
+                                  <span className="text-right font-medium self-center" style={{ color: '#1d1d1f' }}>
+                                    {cost.toLocaleString()}원
+                                  </span>
+                                </div>
+                              )
+                            })}
+                          </div>
+                          <div className="p-4 shrink-0" style={{ borderTop: '1px solid #f0f0f0' }}>
+                            <div className="flex justify-between font-bold px-1" style={{ color: '#0066cc' }}>
+                              <span>직접인건비 합계</span>
+                              <span>{fmt(directLaborCost)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
-              </div>
+                )
+              })()}
 
               {/* 점검 내역 */}
               <div className="card">

@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { Building2, ClipboardCheck, Users, HardHat, AlertCircle } from 'lucide-react'
-import { buildingsApi, techniciansApi, inspectionsApi } from '../utils/api'
-import type { Building, Technician, InspectionForm, BuildingStatus } from '../types'
+import { Building2, ClipboardCheck, HardHat, AlertCircle, Users, X } from 'lucide-react'
+import { buildingsApi, techniciansApi } from '../utils/api'
+import type { Building, Technician, BuildingStatus, TechnicianGrade } from '../types'
 
 const STATUS_LABELS: Record<BuildingStatus, string> = {
   등록: '등록', 작성중: '작성 중', 작성완료: '작성 완료', 점검표보완: '보완 필요', 검수완료: '검수 완료',
@@ -16,15 +16,16 @@ const STATUS_COLORS: Record<BuildingStatus, string> = {
   검수완료: 'bg-green-100 text-green-700',
 }
 
+const GRADES: TechnicianGrade[] = ['특급기술자', '고급기술자', '중급기술자', '초급기술자']
+
 export default function Dashboard() {
   const [buildings, setBuildings] = useState<Building[]>([])
   const [technicians, setTechnicians] = useState<Technician[]>([])
-  const [inspections, setInspections] = useState<InspectionForm[]>([])
+  const [gradePopup, setGradePopup] = useState<TechnicianGrade | null>(null)
 
   useEffect(() => {
     buildingsApi.getAll().then(setBuildings).catch(() => {})
     techniciansApi.getAll().then(setTechnicians).catch(() => {})
-    inspectionsApi.getAll().then(setInspections).catch(() => {})
   }, [])
 
   const statusCounts = useMemo(() => {
@@ -41,9 +42,9 @@ export default function Dashboard() {
     return counts
   }, [technicians])
 
-  const recentInspections = useMemo(
-    () => [...inspections].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 5),
-    [inspections]
+  const popupTechnicians = useMemo(
+    () => gradePopup ? technicians.filter(t => t.grade === gradePopup) : [],
+    [technicians, gradePopup]
   )
 
   return (
@@ -57,7 +58,7 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="card">
-          <h2 className="font-semibold text-gray-800 mb-4">건축물 상태별 현황</h2>
+          <h2 className="font-semibold mb-4" style={{ color: '#1d1d1f' }}>건축물 상태별 현황</h2>
           {buildings.length === 0 ? (
             <EmptyState text="등록된 건축물이 없습니다." link="/building-register" linkText="건축물 등록하기" />
           ) : (
@@ -66,13 +67,16 @@ export default function Dashboard() {
                 <div key={key} className="flex items-center justify-between">
                   <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[key]}`}>{label}</span>
                   <div className="flex items-center gap-3">
-                    <div className="w-32 bg-gray-100 rounded-full h-2">
+                    <div className="w-32 rounded-full h-2" style={{ backgroundColor: '#f0f0f0' }}>
                       <div
-                        className="bg-blue-500 h-2 rounded-full"
-                        style={{ width: buildings.length ? `${(statusCounts[key] / buildings.length) * 100}%` : '0%' }}
+                        className="h-2 rounded-full"
+                        style={{
+                          backgroundColor: '#0066cc',
+                          width: buildings.length ? `${(statusCounts[key] / buildings.length) * 100}%` : '0%',
+                        }}
                       />
                     </div>
-                    <span className="text-sm font-medium w-8 text-right">{statusCounts[key]}</span>
+                    <span className="text-sm font-medium w-8 text-right" style={{ color: '#1d1d1f' }}>{statusCounts[key]}</span>
                   </div>
                 </div>
               ))}
@@ -82,19 +86,26 @@ export default function Dashboard() {
 
         <div className="card">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold text-gray-800">기술자 현황</h2>
-            <Link to="/technicians" className="text-xs text-blue-600 hover:underline">전체 보기</Link>
+            <h2 className="font-semibold" style={{ color: '#1d1d1f' }}>기술자 현황</h2>
+            <Link to="/technicians" className="text-xs" style={{ color: '#0066cc' }}>전체 보기</Link>
           </div>
           {technicians.length === 0 ? (
             <EmptyState text="등록된 기술자가 없습니다." link="/technicians" linkText="기술자 등록하기" />
           ) : (
             <div className="space-y-2">
-              {(['특급기술자', '고급기술자', '중급기술자', '초급기술자'] as const).map(grade => (
-                <div key={grade} className="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-0">
-                  <span className="text-sm text-gray-700">{grade}</span>
+              {GRADES.map(grade => (
+                <div key={grade} className="flex items-center justify-between py-1.5" style={{ borderBottom: '1px solid #f0f0f0' }}>
+                  <span className="text-sm" style={{ color: '#333333' }}>{grade}</span>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-gray-900">{gradeCounts[grade] || 0}명</span>
-                    <Users size={14} className="text-gray-400" />
+                    <span className="text-sm font-semibold" style={{ color: '#1d1d1f' }}>{gradeCounts[grade] || 0}명</span>
+                    <button
+                      onClick={() => gradeCounts[grade] > 0 && setGradePopup(grade)}
+                      className="p-1 rounded-md transition-colors"
+                      style={{ color: gradeCounts[grade] > 0 ? '#0066cc' : '#cccccc', cursor: gradeCounts[grade] > 0 ? 'pointer' : 'default' }}
+                      title={gradeCounts[grade] > 0 ? `${grade} 목록 보기` : undefined}
+                    >
+                      <Users size={14} />
+                    </button>
                   </div>
                 </div>
               ))}
@@ -103,52 +114,29 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="card">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="font-semibold text-gray-800">최근 점검 활동</h2>
-          <Link to="/inspection" className="text-xs text-blue-600 hover:underline">점검표 작성</Link>
-        </div>
-        {recentInspections.length === 0 ? (
-          <EmptyState text="점검 내역이 없습니다." link="/inspection" linkText="점검표 작성하기" />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-100">
-                  <th className="text-left py-2 text-gray-500 font-medium">건축물</th>
-                  <th className="text-left py-2 text-gray-500 font-medium">점검유형</th>
-                  <th className="text-left py-2 text-gray-500 font-medium">점검일자</th>
-                  <th className="text-left py-2 text-gray-500 font-medium">상태</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentInspections.map(insp => {
-                  const building = buildings.find(b => b.id === insp.buildingId)
-                  return (
-                    <tr key={insp.id} className="border-b border-[#f0f0f0] hover:bg-[#f5f5f7]">
-                      <td className="py-2 text-gray-900">{building?.name ?? '-'}</td>
-                      <td className="py-2">
-                        <span className={`text-xs px-2 py-0.5 rounded ${insp.inspectionType === '기능점검' ? 'bg-blue-50 text-blue-700' : 'bg-purple-50 text-purple-700'}`}>
-                          {insp.inspectionType}
-                        </span>
-                      </td>
-                      <td className="py-2 text-gray-600">{insp.inspectionDate}</td>
-                      <td className="py-2">
-                        <span className={`text-xs px-2 py-0.5 rounded ${
-                          insp.status === '검수완료' ? 'bg-green-50 text-green-700' :
-                          insp.status === '점검표보완' ? 'bg-orange-50 text-orange-700' :
-                          insp.status === '작성완료' ? 'bg-blue-50 text-blue-700' :
-                          'bg-yellow-50 text-yellow-700'
-                        }`}>{insp.status}</span>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+      {/* 기술자 등급별 목록 팝업 */}
+      {gradePopup && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white w-full max-w-sm" style={{ borderRadius: '18px', border: '1px solid #e0e0e0' }}>
+            <div className="flex items-center justify-between p-5" style={{ borderBottom: '1px solid #f0f0f0' }}>
+              <div className="flex items-center gap-2">
+                <HardHat size={16} style={{ color: '#0066cc' }} />
+                <h3 className="font-semibold" style={{ color: '#1d1d1f', fontSize: '15px' }}>{gradePopup}</h3>
+                <span className="text-sm" style={{ color: '#7a7a7a' }}>{popupTechnicians.length}명</span>
+              </div>
+              <button onClick={() => setGradePopup(null)} style={{ color: '#7a7a7a' }}><X size={20} /></button>
+            </div>
+            <div className="p-4 space-y-2 max-h-80 overflow-y-auto">
+              {popupTechnicians.map(t => (
+                <div key={t.id} className="flex items-center justify-between px-3 py-2.5 rounded-[11px]" style={{ backgroundColor: '#f5f5f7' }}>
+                  <span className="text-sm font-medium" style={{ color: '#1d1d1f' }}>{t.name}</span>
+                  <span className="text-xs" style={{ color: '#7a7a7a' }}>{t.phone}</span>
+                </div>
+              ))}
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -160,9 +148,9 @@ function StatCard({ icon, label, value, sub, color }: {
     <div className="card flex items-start gap-4">
       <div className={`p-2.5 rounded-lg ${color}`}>{icon}</div>
       <div>
-        <p className="text-2xl font-bold text-gray-900">{value}</p>
-        <p className="text-sm font-medium text-gray-700">{label}</p>
-        <p className="text-xs text-gray-400">{sub}</p>
+        <p className="text-2xl font-bold" style={{ color: '#1d1d1f' }}>{value}</p>
+        <p className="text-sm font-medium" style={{ color: '#333333' }}>{label}</p>
+        <p className="text-xs" style={{ color: '#7a7a7a' }}>{sub}</p>
       </div>
     </div>
   )
@@ -171,8 +159,8 @@ function StatCard({ icon, label, value, sub, color }: {
 function EmptyState({ text, link, linkText }: { text: string; link: string; linkText: string }) {
   return (
     <div className="text-center py-6">
-      <p className="text-sm text-gray-400 mb-2">{text}</p>
-      <Link to={link} className="text-sm text-blue-600 hover:underline">{linkText}</Link>
+      <p className="text-sm mb-2" style={{ color: '#7a7a7a' }}>{text}</p>
+      <Link to={link} className="text-sm" style={{ color: '#0066cc' }}>{linkText}</Link>
     </div>
   )
 }

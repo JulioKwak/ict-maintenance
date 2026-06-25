@@ -516,7 +516,7 @@ function EquipmentInspectionPanel({
 }) {
   const eq = EQUIPMENT_LIST.find(e => e.id === equipmentId)
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>(
-    Object.fromEntries(items.map(i => [i.id, true]))
+    Object.fromEntries(items.map(i => [i.id, false]))
   )
 
   const toggleItem = (id: string) => setExpandedItems(prev => ({ ...prev, [id]: !prev[id] }))

@@ -63,11 +63,11 @@ export default function AIGenerate() {
           equipmentList: selectedBuilding ? formatEquipmentForRequest(selectedBuilding) : [],
         }),
       })
-      const data = await res.json() as { url?: string; error?: string }
-      if (!res.ok || !data.url) {
+      const data = await res.json() as { url?: string; b64?: string; error?: string }
+      if (!res.ok || (!data.url && !data.b64)) {
         setError(data.error ?? '이미지 생성에 실패했습니다.')
       } else {
-        setResultUrl(data.url)
+        setResultUrl(data.url ?? `data:image/png;base64,${data.b64}`)
       }
     } catch {
       setError('네트워크 오류가 발생했습니다.')
@@ -209,8 +209,7 @@ export default function AIGenerate() {
             <a
               href={resultUrl}
               download={`${diagramKey}_${Date.now()}.png`}
-              target="_blank"
-              rel="noopener noreferrer"
+              {...(!resultUrl.startsWith('data:') && { target: '_blank', rel: 'noopener noreferrer' })}
               className="btn-secondary text-sm flex items-center gap-1.5"
             >
               <Download size={14} />

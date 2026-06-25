@@ -90,10 +90,11 @@ export const onRequestPost: PagesFunction<Env, string, Data> = async ({ request,
       'Authorization': `Bearer ${env.OPENAI_API_KEY}`,
     },
     body: JSON.stringify({
-      model: 'dall-e-2',
+      model: 'gpt-image-2',
       prompt,
       n: 1,
-      size: '1024x1024',
+      size: '1536x1024',
+      quality: 'high',
     }),
   })
 
@@ -105,11 +106,18 @@ export const onRequestPost: PagesFunction<Env, string, Data> = async ({ request,
     )
   }
 
-  const result = await openaiRes.json<{ data: { url: string }[] }>()
-  const url = result.data?.[0]?.url
-  if (!url) {
-    return Response.json({ error: '이미지 URL을 받지 못했습니다.' }, { status: 500 })
+  const result = await openaiRes.json<{ data: { b64_json?: string; url?: string }[] }>()
+  const item = result.data?.[0]
+  if (!item) {
+    return Response.json({ error: '이미지를 받지 못했습니다.' }, { status: 500 })
   }
 
-  return Response.json({ url })
+  if (item.url) {
+    return Response.json({ url: item.url })
+  }
+  if (item.b64_json) {
+    return Response.json({ b64: item.b64_json })
+  }
+
+  return Response.json({ error: '이미지 데이터를 받지 못했습니다.' }, { status: 500 })
 }

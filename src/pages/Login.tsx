@@ -53,7 +53,7 @@ export default function Login() {
               lineHeight: 1.1,
             }}
           >
-            정보통신설비 유지보수·관리 시스템
+            정보통신설비<br />유지보수·관리 시스템
           </h1>
           <p
             className="mt-1.5"

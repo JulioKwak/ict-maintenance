@@ -13,6 +13,8 @@ interface GenerateRequest {
   buildingAddress?: string
   floorArea?: number
   technicianGrade?: string
+  selectedCategory?: string
+  selectedEquipmentName?: string
   equipmentList?: EquipmentItem[]
 }
 
@@ -45,7 +47,8 @@ function formatEquipmentList(items: EquipmentItem[]): string {
 
 export const onRequestPost: PagesFunction<Env, string, Data> = async ({ request, env }) => {
   const body = await request.json<GenerateRequest>()
-  const { diagramKey, buildingName, buildingAddress, floorArea, technicianGrade, equipmentList } = body
+  const { diagramKey, buildingName, buildingAddress, floorArea, technicianGrade,
+          selectedCategory, selectedEquipmentName, equipmentList } = body
 
   const filename = DIAGRAM_FILES[diagramKey]
   if (!filename) {
@@ -70,11 +73,28 @@ export const onRequestPost: PagesFunction<Env, string, Data> = async ({ request,
 
   let prompt = await promptRes.text()
 
+  const CATEGORY_EN: Record<string, string> = {
+    '통신설비': 'Telecommunications Equipment',
+    '방송설비': 'Broadcasting Equipment',
+    '정보설비': 'Information Systems Equipment',
+    '기타설비': 'Other Facilities Equipment',
+  }
+
+  const generationScope = selectedEquipmentName
+    ? `${selectedEquipmentName} (${selectedCategory})`
+    : selectedCategory
+      ? `${selectedCategory} 전체`
+      : '전체 설비'
+
   const replacements: Record<string, string> = {
     '{{building_name}}': buildingName ?? '정보통신설비 관리 건물',
     '{{building_address}}': buildingAddress ?? '주소 미입력',
     '{{floor_area}}': floorArea ? floorArea.toLocaleString('ko-KR') : '미입력',
     '{{technician_grade}}': technicianGrade ?? '미정',
+    '{{selected_category}}': selectedCategory ?? '전체 설비',
+    '{{selected_category_en}}': selectedCategory ? (CATEGORY_EN[selectedCategory] ?? selectedCategory) : 'All Equipment',
+    '{{selected_equipment}}': selectedEquipmentName ?? '전체',
+    '{{generation_scope}}': generationScope,
     '{{equipment_list}}': formatEquipmentList(equipmentList ?? []),
     '{{equipment_count}}': String(equipmentList?.length ?? 0),
   }

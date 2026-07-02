@@ -254,13 +254,13 @@ export default function InspectionReview() {
               ).map(([eqId, items]) => {
                 const eq = EQUIPMENT_LIST.find(e => e.id === eqId)
                 const badCount = items.reduce((n, item) =>
-                  n + item.locations.filter(l => l.result === '미흡').length, 0)
+                  n + item.locations.filter(l => l.result === '부적합').length, 0)
                 return (
                   <div key={eqId} className="card">
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="font-medium" style={{ color: '#1d1d1f' }}>{eq?.name}</h3>
                       {badCount > 0 && (
-                        <span className="text-xs px-2 py-0.5 bg-red-50 text-red-600 rounded-full">미흡 {badCount}건</span>
+                        <span className="text-xs px-2 py-0.5 bg-red-50 text-red-600 rounded-full">부적합 {badCount}건</span>
                       )}
                     </div>
                     <div className="space-y-2 text-sm">
@@ -279,8 +279,9 @@ export default function InspectionReview() {
                               <div className="flex items-center justify-between mb-1">
                                 <span className="text-xs" style={{ color: '#7a7a7a' }}>{loc.location || '위치 미입력'}</span>
                                 <span className={`text-xs px-2 py-0.5 rounded ${
-                                  loc.result === '양호' ? 'bg-green-50 text-green-700' :
-                                  loc.result === '미흡' ? 'bg-red-50 text-red-700' :
+                                  loc.result === '적합' ? 'bg-green-50 text-green-700' :
+                                  loc.result === '부적합' ? 'bg-red-50 text-red-700' :
+                                  loc.result === '해당없음' ? 'bg-gray-100 text-gray-500' :
                                   'bg-gray-100 text-gray-400'
                                 }`}>{loc.result || '미입력'}</span>
                               </div>

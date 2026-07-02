@@ -81,7 +81,7 @@ export interface Building {
 export type InspectionType = '기능점검' | '성능점검'
 
 // 점검 결과
-export type InspectionResult = '양호' | '미흡' | ''
+export type InspectionResult = '적합' | '부적합' | '해당없음' | ''
 
 // 점검 위치 항목
 export interface InspectionLocation {

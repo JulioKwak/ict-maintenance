@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Minus, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { Plus, Minus, AlertCircle, CheckCircle2, X } from 'lucide-react'
 import {
   EQUIPMENT_LIST,
   WAGE_RATES,
@@ -31,6 +31,11 @@ export default function BuildingRegister() {
   // 설비 체크 및 수량
   const [checkedEquipment, setCheckedEquipment] = useState<Record<string, boolean>>({})
   const [equipmentQty, setEquipmentQty] = useState<Record<string, number>>({})
+
+  // 대상설비 선택 팝업 (카테고리별 임시 선택 상태)
+  const [openCategoryModal, setOpenCategoryModal] = useState<EquipmentCategory | null>(null)
+  const [draftChecked, setDraftChecked] = useState<Record<string, boolean>>({})
+  const [draftQty, setDraftQty] = useState<Record<string, number>>({})
 
   // 직접경비
   const [travel, setTravel] = useState('')
@@ -82,11 +87,55 @@ export default function BuildingRegister() {
     }
   }, [floorAreaError])
 
-  const toggleEquipment = (id: string) => {
-    setCheckedEquipment(prev => ({ ...prev, [id]: !prev[id] }))
-    if (!checkedEquipment[id]) {
-      setEquipmentQty(prev => ({ ...prev, [id]: 1 }))
-    }
+  const openEquipmentModal = (cat: EquipmentCategory) => {
+    setDraftChecked({ ...checkedEquipment })
+    setDraftQty({ ...equipmentQty })
+    setOpenCategoryModal(cat)
+  }
+
+  const closeEquipmentModal = () => setOpenCategoryModal(null)
+
+  const toggleDraftEquipment = (id: string) => {
+    setDraftChecked(prev => {
+      const nextChecked = !prev[id]
+      if (nextChecked) {
+        setDraftQty(q => ({ ...q, [id]: q[id] || 1 }))
+      }
+      return { ...prev, [id]: nextChecked }
+    })
+  }
+
+  const changeDraftQty = (id: string, delta: number) => {
+    setDraftQty(prev => ({ ...prev, [id]: Math.max(1, (prev[id] || 1) + delta) }))
+  }
+
+  const selectAllInCategory = (cat: EquipmentCategory) => {
+    const ids = EQUIPMENT_LIST.filter(eq => eq.category === cat).map(eq => eq.id)
+    setDraftChecked(prev => {
+      const next = { ...prev }
+      ids.forEach(id => { next[id] = true })
+      return next
+    })
+    setDraftQty(prev => {
+      const next = { ...prev }
+      ids.forEach(id => { if (!next[id]) next[id] = 1 })
+      return next
+    })
+  }
+
+  const clearAllInCategory = (cat: EquipmentCategory) => {
+    const ids = EQUIPMENT_LIST.filter(eq => eq.category === cat).map(eq => eq.id)
+    setDraftChecked(prev => {
+      const next = { ...prev }
+      ids.forEach(id => { next[id] = false })
+      return next
+    })
+  }
+
+  const applyEquipmentModal = () => {
+    setCheckedEquipment(draftChecked)
+    setEquipmentQty(draftQty)
+    setOpenCategoryModal(null)
   }
 
   const handleSubmit = async (e: FormEvent) => {
@@ -168,8 +217,9 @@ export default function BuildingRegister() {
               onChange={e => handleFloorAreaChange(e.target.value)}
               onBlur={handleFloorAreaBlur}
               className={`input-field ${floorAreaError ? 'border-red-400' : ''}`}
-              placeholder="연면적을 입력하세요"
+              placeholder="연면적을 입력하세요 (예: 12345.67)"
               min="0"
+              step="0.01"
             />
             {floorAreaError && (
               <div className="flex items-center gap-1.5 mt-1.5 text-red-600">
@@ -216,41 +266,106 @@ export default function BuildingRegister() {
       {/* 대상설비 선택 */}
       <div className="card">
         <h2 className="font-semibold text-gray-800 mb-4 pb-2 border-b">대상 설비 선택</h2>
-        {CATEGORIES.map(cat => (
-          <div key={cat} className="mb-5">
-            <h3 className="text-sm font-semibold text-gray-600 mb-2 uppercase tracking-wide">{cat}</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-              {EQUIPMENT_LIST.filter(eq => eq.category === cat).map(eq => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {CATEGORIES.map(cat => {
+            const selectedNames = EQUIPMENT_LIST
+              .filter(eq => eq.category === cat && checkedEquipment[eq.id])
+              .map(eq => eq.name)
+            return (
+              <div
+                key={cat}
+                onClick={() => openEquipmentModal(cat)}
+                className="border rounded-xl p-4 cursor-pointer transition-colors border-gray-200 hover:border-blue-400 hover:bg-blue-50/40 flex flex-col"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-semibold text-gray-800 text-sm">{cat}</span>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-medium whitespace-nowrap">
+                    {selectedNames.length}개 선택
+                  </span>
+                </div>
+                <div className="text-xs text-gray-500 leading-relaxed">
+                  {selectedNames.length > 0 ? selectedNames.join(', ') : '선택된 설비가 없습니다'}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* 대상설비 선택 팝업 */}
+      {openCategoryModal && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={closeEquipmentModal}
+        >
+          <div
+            className="bg-white w-full max-w-lg flex flex-col"
+            style={{ borderRadius: '18px', border: '1px solid #e0e0e0', maxHeight: '85vh' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-5" style={{ borderBottom: '1px solid #f0f0f0' }}>
+              <h3 className="font-semibold" style={{ color: '#1d1d1f', fontSize: '15px' }}>{openCategoryModal} 설비 선택</h3>
+              <button type="button" onClick={closeEquipmentModal} style={{ color: '#7a7a7a' }}><X size={20} /></button>
+            </div>
+
+            <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: '1px solid #f0f0f0' }}>
+              <span className="text-xs text-gray-500">
+                {EQUIPMENT_LIST.filter(eq => eq.category === openCategoryModal && draftChecked[eq.id]).length}
+                {' / '}
+                {EQUIPMENT_LIST.filter(eq => eq.category === openCategoryModal).length}개 선택됨
+              </span>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => selectAllInCategory(openCategoryModal)}
+                  className="btn-secondary text-xs"
+                  style={{ padding: '6px 12px' }}
+                >
+                  전체선택
+                </button>
+                <button
+                  type="button"
+                  onClick={() => clearAllInCategory(openCategoryModal)}
+                  className="btn-secondary text-xs"
+                  style={{ padding: '6px 12px' }}
+                >
+                  전체해제
+                </button>
+              </div>
+            </div>
+
+            <div className="p-5 space-y-2 overflow-y-auto">
+              {EQUIPMENT_LIST.filter(eq => eq.category === openCategoryModal).map(eq => (
                 <div
                   key={eq.id}
                   className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-colors ${
-                    checkedEquipment[eq.id]
+                    draftChecked[eq.id]
                       ? 'border-blue-400 bg-blue-50'
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
-                  onClick={() => toggleEquipment(eq.id)}
+                  onClick={() => toggleDraftEquipment(eq.id)}
                 >
                   <div className="flex items-center gap-2">
                     <div className={`w-4 h-4 rounded border flex items-center justify-center ${
-                      checkedEquipment[eq.id] ? 'bg-blue-600 border-blue-600' : 'border-gray-300'
+                      draftChecked[eq.id] ? 'bg-blue-600 border-blue-600' : 'border-gray-300'
                     }`}>
-                      {checkedEquipment[eq.id] && <CheckCircle2 size={12} className="text-white" />}
+                      {draftChecked[eq.id] && <CheckCircle2 size={12} className="text-white" />}
                     </div>
                     <span className="text-sm text-gray-800">{eq.name}</span>
                   </div>
-                  {checkedEquipment[eq.id] && !eq.applyAdjustment && (
+                  {draftChecked[eq.id] && !eq.applyAdjustment && (
                     <div className="flex items-center gap-1.5 ml-2" onClick={e => e.stopPropagation()}>
                       <button
                         type="button"
-                        onClick={() => setEquipmentQty(prev => ({ ...prev, [eq.id]: Math.max(1, (prev[eq.id] || 1) - 1) }))}
+                        onClick={() => changeDraftQty(eq.id, -1)}
                         className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center hover:bg-gray-300"
                       >
                         <Minus size={12} />
                       </button>
-                      <span className="text-sm font-medium w-8 text-center">{equipmentQty[eq.id] || 1}</span>
+                      <span className="text-sm font-medium w-8 text-center">{draftQty[eq.id] || 1}</span>
                       <button
                         type="button"
-                        onClick={() => setEquipmentQty(prev => ({ ...prev, [eq.id]: (prev[eq.id] || 1) + 1 }))}
+                        onClick={() => changeDraftQty(eq.id, 1)}
                         className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center hover:bg-gray-300"
                       >
                         <Plus size={12} />
@@ -258,15 +373,20 @@ export default function BuildingRegister() {
                       <span className="text-xs text-gray-500">{eq.unit}</span>
                     </div>
                   )}
-                  {checkedEquipment[eq.id] && eq.applyAdjustment && (
+                  {draftChecked[eq.id] && eq.applyAdjustment && (
                     <span className="text-xs text-gray-400 ml-2">1식</span>
                   )}
                 </div>
               ))}
             </div>
+
+            <div className="flex gap-3 p-5" style={{ borderTop: '1px solid #f0f0f0' }}>
+              <button type="button" onClick={applyEquipmentModal} className="btn-primary flex-1">적용</button>
+              <button type="button" onClick={closeEquipmentModal} className="btn-secondary flex-1">취소</button>
+            </div>
           </div>
-        ))}
-      </div>
+        </div>
+      )}
 
       {/* 대가산정 */}
       <div className="card">
@@ -352,7 +472,7 @@ export default function BuildingRegister() {
           <CostRow label={`기술료 (${techFeeRate}%)`} value={fmt(techFee)} />
           <CostRow label="부가가치세 (10%)" value={fmt(vat)} />
           <div className="border-t pt-2 mt-2 flex justify-between">
-            <span className="font-bold text-gray-900">총 대가</span>
+            <span className="font-bold text-gray-900">총 대가(1회 점검 비용)</span>
             <span className="font-bold text-blue-700 text-base">{fmt(totalCost)}</span>
           </div>
         </div>

@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useState, useEffect, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
@@ -9,6 +9,13 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (sessionStorage.getItem('ict_session_expired')) {
+      sessionStorage.removeItem('ict_session_expired')
+      setError('장시간(1시간 이상) 활동이 없어 자동으로 로그아웃되었습니다. 다시 로그인해주세요.')
+    }
+  }, [])
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()

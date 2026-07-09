@@ -34,6 +34,11 @@ export const onRequest: PagesFunction<Env, string, Data> = async (ctx) => {
     }
 
     data.username = session.username
+
+    // 요청(활동)이 있을 때마다 만료 시각을 1시간 뒤로 연장 (유휴 타임아웃)
+    await env.DB.prepare(
+      `UPDATE sessions SET expires_at = datetime('now', '+1 hour') WHERE token = ?`
+    ).bind(token).run()
   }
 
   const res = await ctx.next()

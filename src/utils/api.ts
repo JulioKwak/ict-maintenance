@@ -13,6 +13,7 @@ function getToken(): string {
 function clearSession(): void {
   localStorage.removeItem('ict_token')
   localStorage.removeItem('ict_current_user')
+  localStorage.removeItem('ict_last_activity')
 }
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
@@ -26,7 +27,12 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   })
 
   if (res.status === 401) {
+    const hadToken = !!getToken()
     clearSession()
+    // 로그인 시도 자체의 실패(아이디/비밀번호 오류)가 아니라 세션이 무효화된 경우에만 안내 문구 표시
+    if (hadToken && path !== '/auth/login') {
+      sessionStorage.setItem('ict_session_expired', '1')
+    }
     window.location.href = '/login'
     throw new Error('Unauthorized')
   }
@@ -77,6 +83,11 @@ export const authApi = {
       body: JSON.stringify({ username, password }),
     })
     return res.ok
+  },
+
+  // 사용자 활동이 있을 때 호출해 서버 세션의 유휴 만료 시각을 연장한다.
+  async ping(): Promise<void> {
+    await request('/auth/ping', { method: 'POST' })
   },
 }
 

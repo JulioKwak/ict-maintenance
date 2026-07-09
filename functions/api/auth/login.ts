@@ -62,8 +62,9 @@ export const onRequestPost: PagesFunction<Env, string, Data> = async ({ request,
   crypto.getRandomValues(arr)
   const token = Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('')
 
+  // 활동이 없으면 1시간 후 만료 (요청이 있을 때마다 _middleware.ts에서 갱신됨)
   await env.DB.prepare(
-    `INSERT INTO sessions (token, username, expires_at) VALUES (?, ?, datetime('now', '+7 days'))`
+    `INSERT INTO sessions (token, username, expires_at) VALUES (?, ?, datetime('now', '+1 hour'))`
   ).bind(token, username).run()
 
   return Response.json({

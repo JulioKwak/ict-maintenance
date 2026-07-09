@@ -64,6 +64,10 @@ export default function BuildingRegister() {
 
   const fmt = (n: number) => Math.round(n).toLocaleString('ko-KR') + '원'
 
+  // 직접경비 입력값(숫자만 저장) ↔ 화면 표시(천단위 쉼표) 변환
+  const onlyDigits = (v: string) => v.replace(/[^\d]/g, '')
+  const toMoneyDisplay = (v: string) => (v ? Number(v).toLocaleString('ko-KR') : '')
+
   const handleFloorAreaChange = useCallback((val: string) => {
     setFloorArea(val)
     const n = parseFloat(val)
@@ -223,34 +227,34 @@ export default function BuildingRegister() {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">여비 (원)</label>
             <input
-              type="number"
-              value={travel}
-              onChange={e => setTravel(e.target.value)}
+              type="text"
+              inputMode="numeric"
+              value={toMoneyDisplay(travel)}
+              onChange={e => setTravel(onlyDigits(e.target.value))}
               className="input-field"
               placeholder="직접 입력"
-              min="0"
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">차량운행비 (원)</label>
             <input
-              type="number"
-              value={vehicle}
-              onChange={e => setVehicle(e.target.value)}
+              type="text"
+              inputMode="numeric"
+              value={toMoneyDisplay(vehicle)}
+              onChange={e => setVehicle(onlyDigits(e.target.value))}
               className="input-field"
               placeholder="직접 입력"
-              min="0"
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">현장소요경비 (원)</label>
             <input
-              type="number"
-              value={fieldExpense}
-              onChange={e => setFieldExpense(e.target.value)}
+              type="text"
+              inputMode="numeric"
+              value={toMoneyDisplay(fieldExpense)}
+              onChange={e => setFieldExpense(onlyDigits(e.target.value))}
               className="input-field"
               placeholder="직접 입력"
-              min="0"
             />
           </div>
         </div>

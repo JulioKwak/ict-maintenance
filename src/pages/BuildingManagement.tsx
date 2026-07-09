@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Building2, Search, ChevronRight, Trash2, Download, ClipboardCheck, Plus, FileText, X, ClipboardList } from 'lucide-react'
+import { Building2, Search, ChevronRight, Trash2, Download, ClipboardCheck, Plus, FileText, X, ClipboardList, Pencil } from 'lucide-react'
 import { buildingsApi, inspectionsApi, techniciansApi } from '../utils/api'
 import { EQUIPMENT_LIST, calcDirectLaborCost } from '../data/equipment'
 import type { Building, BuildingStatus, InspectionForm, InspectionType, Technician } from '../types'
 import PasswordConfirmModal from '../components/PasswordConfirmModal'
+import EquipmentSelector from '../components/EquipmentSelector'
 import { format } from 'date-fns'
 import * as XLSX from 'xlsx'
 
@@ -46,11 +47,21 @@ export default function BuildingManagement() {
   // 직접인건비 상세 팝업
   const [showLaborPopup, setShowLaborPopup] = useState(false)
 
+  // 등록 설비 수정
+  const [editingEquipment, setEditingEquipment] = useState(false)
+  const [editChecked, setEditChecked] = useState<Record<string, boolean>>({})
+  const [editQty, setEditQty] = useState<Record<string, number>>({})
+  const [savingEquipment, setSavingEquipment] = useState(false)
+
   useEffect(() => {
     buildingsApi.getAll().then(setBuildings).catch(() => {})
     inspectionsApi.getAll().then(setAllInspections).catch(() => {})
     techniciansApi.getAll().then(setTechnicians).catch(() => {})
   }, [])
+
+  useEffect(() => {
+    setEditingEquipment(false)
+  }, [selectedId])
 
   const filtered = useMemo(() => buildings.filter(b => {
     const matchSearch = b.name.includes(search) || b.address.includes(search)
@@ -74,6 +85,48 @@ export default function BuildingManagement() {
         if (selectedId === building.id) setSelectedId(null)
       },
     })
+  }
+
+  const startEditEquipment = (building: Building) => {
+    const checked: Record<string, boolean> = {}
+    const qty: Record<string, number> = {}
+    building.equipment.filter(e => e.checked).forEach(e => {
+      checked[e.equipmentId] = true
+      qty[e.equipmentId] = e.quantity
+    })
+    setEditChecked(checked)
+    setEditQty(qty)
+    setEditingEquipment(true)
+  }
+
+  const cancelEditEquipment = () => setEditingEquipment(false)
+
+  const saveEditEquipment = async (building: Building) => {
+    const newEquipment = EQUIPMENT_LIST
+      .filter(eq => editChecked[eq.id])
+      .map(eq => ({ equipmentId: eq.id, quantity: editQty[eq.id] || 1, checked: true }))
+
+    const eqItems = newEquipment
+      .map(be => ({ equipment: EQUIPMENT_LIST.find(eq => eq.id === be.equipmentId), quantity: be.quantity }))
+      .filter((x): x is { equipment: typeof EQUIPMENT_LIST[number]; quantity: number } => !!x.equipment)
+
+    const directLaborCost = calcDirectLaborCost(eqItems, building.adjustmentFactor, building.wageRate)
+    const directExpense = building.directCost.travel + building.directCost.vehicle + building.directCost.fieldExpense
+    const overheadCost = Math.round(directLaborCost * building.overheadRate / 100)
+    const techFee = Math.round((directLaborCost + overheadCost) * building.techFeeRate / 100)
+    const vat = Math.round((directLaborCost + directExpense + overheadCost + techFee) * 0.1)
+    const totalCost = Math.round(directLaborCost + directExpense + overheadCost + techFee + vat)
+
+    setSavingEquipment(true)
+    try {
+      const updated = await buildingsApi.update(building.id, { equipment: newEquipment, totalCost })
+      setBuildings(prev => prev.map(b => (b.id === building.id ? updated : b)))
+      setEditingEquipment(false)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '설비 수정 중 오류가 발생했습니다.')
+    } finally {
+      setSavingEquipment(false)
+    }
   }
 
   const confirmDeleteInspection = (insp: InspectionForm) => {
@@ -248,22 +301,56 @@ export default function BuildingManagement() {
 
               {/* 등록 설비 */}
               <div className="card">
-                <h3 className="font-semibold mb-3" style={{ color: '#1d1d1f' }}>등록 설비</h3>
-                <div className="flex flex-wrap gap-2">
-                  {selected.equipment.filter(e => e.checked).length === 0 ? (
-                    <p className="text-sm" style={{ color: '#7a7a7a' }}>등록된 설비가 없습니다.</p>
-                  ) : (
-                    selected.equipment.filter(e => e.checked).map(be => {
-                      const eq = EQUIPMENT_LIST.find(e => e.id === be.equipmentId)
-                      return (
-                        <span key={be.equipmentId} className="text-xs px-2.5 py-1 rounded-full" style={{ backgroundColor: 'rgba(0,102,204,0.08)', color: '#0066cc' }}>
-                          {eq?.name ?? be.equipmentId}
-                          {!eq?.applyAdjustment && ` (${be.quantity}${eq?.unit})`}
-                        </span>
-                      )
-                    })
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold" style={{ color: '#1d1d1f' }}>등록 설비</h3>
+                  {!editingEquipment && (
+                    <button
+                      onClick={() => startEditEquipment(selected)}
+                      className="flex items-center gap-1 text-sm font-medium"
+                      style={{ color: '#0066cc' }}
+                    >
+                      <Pencil size={14} />설비항목 수정
+                    </button>
                   )}
                 </div>
+
+                {editingEquipment ? (
+                  <>
+                    <EquipmentSelector
+                      checkedEquipment={editChecked}
+                      equipmentQty={editQty}
+                      onChange={(checked, qty) => { setEditChecked(checked); setEditQty(qty) }}
+                    />
+                    <div className="flex gap-2 mt-4">
+                      <button
+                        onClick={() => saveEditEquipment(selected)}
+                        disabled={savingEquipment}
+                        className="btn-primary text-sm disabled:opacity-60"
+                      >
+                        {savingEquipment ? '저장 중...' : '저장'}
+                      </button>
+                      <button onClick={cancelEditEquipment} disabled={savingEquipment} className="btn-secondary text-sm">
+                        취소
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {selected.equipment.filter(e => e.checked).length === 0 ? (
+                      <p className="text-sm" style={{ color: '#7a7a7a' }}>등록된 설비가 없습니다.</p>
+                    ) : (
+                      selected.equipment.filter(e => e.checked).map(be => {
+                        const eq = EQUIPMENT_LIST.find(e => e.id === be.equipmentId)
+                        return (
+                          <span key={be.equipmentId} className="text-xs px-2.5 py-1 rounded-full" style={{ backgroundColor: 'rgba(0,102,204,0.08)', color: '#0066cc' }}>
+                            {eq?.name ?? be.equipmentId}
+                            {!eq?.applyAdjustment && ` (${be.quantity}${eq?.unit})`}
+                          </span>
+                        )
+                      })
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* 대가산정 요약 */}

@@ -71,6 +71,7 @@ export default function Inspection() {
         subCategory: t.subCategory,
         range: t.range,
         content: t.content,
+        method: t.method,
         locations: [{
           id: generateId(),
           location: '',
@@ -140,6 +141,7 @@ export default function Inspection() {
         subCategory: t.subCategory,
         range: t.range,
         content: t.content,
+        method: t.method,
         locations: [{
           id: generateId(),
           location: '',
@@ -560,6 +562,18 @@ function EquipmentInspectionPanel({
           {/* 점검 위치 목록 */}
           {expandedItems[item.id] && (
             <div className="border-t border-gray-100">
+              {item.method && item.method.length > 0 && (
+                <div className="px-4 py-3 bg-blue-50/60 border-b border-gray-100">
+                  <p className="text-xs font-medium text-blue-700 mb-1.5">점검 방법</p>
+                  <ul className="space-y-1">
+                    {item.method.map((m, i) => (
+                      <li key={i} className={`text-xs leading-relaxed ${m.startsWith('※') ? 'text-orange-600' : 'text-gray-600'}`}>
+                        {m.startsWith('※') ? m : `· ${m}`}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               {item.locations.map((loc, locIdx) => (
                 <LocationRow
                   key={loc.id}

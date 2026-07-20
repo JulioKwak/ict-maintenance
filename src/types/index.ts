@@ -107,6 +107,7 @@ export interface InspectionItem {
   subCategory: string
   range: string
   content: string
+  method?: string[] // 점검 방법(무엇을, 어떻게 확인해야 하는지). 기존 점검표에는 없을 수 있어 optional.
   locations: InspectionLocation[]
 }
 

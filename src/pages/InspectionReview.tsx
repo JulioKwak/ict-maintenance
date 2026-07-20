@@ -266,13 +266,28 @@ export default function InspectionReview() {
                     <div className="space-y-2 text-sm">
                       {items.map(item => (
                         <div key={item.id} style={{ border: '1px solid #f0f0f0', borderRadius: '10px', overflow: 'hidden' }}>
-                          <div className="flex items-center gap-2 px-3 py-2" style={{ backgroundColor: '#f5f5f7' }}>
-                            <span className={`text-xs px-1.5 py-0.5 rounded ${
-                              item.subCategory === '외관' ? 'bg-gray-200 text-gray-700' :
-                              item.subCategory === '기능' ? 'bg-blue-100 text-blue-700' :
-                              'bg-red-50 text-red-700'
-                            }`}>{item.subCategory}</span>
-                            <span style={{ color: '#1d1d1f' }}>{item.content}</span>
+                          <div className="px-3 py-2" style={{ backgroundColor: '#f5f5f7' }}>
+                            <div className="flex items-center gap-2">
+                              <span className={`text-xs px-1.5 py-0.5 rounded ${
+                                item.subCategory === '외관' ? 'bg-gray-200 text-gray-700' :
+                                item.subCategory === '기능' ? 'bg-blue-100 text-blue-700' :
+                                'bg-red-50 text-red-700'
+                              }`}>{item.subCategory}</span>
+                              <span style={{ color: '#1d1d1f' }}>{item.content}</span>
+                            </div>
+                            {item.method && item.method.length > 0 && (
+                              <ul className="mt-1.5 space-y-0.5">
+                                {item.method.map((m, i) => (
+                                  <li
+                                    key={i}
+                                    className="text-xs leading-relaxed"
+                                    style={{ color: m.startsWith('※') ? '#c2410c' : '#7a7a7a' }}
+                                  >
+                                    {m.startsWith('※') ? m : `· ${m}`}
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
                           </div>
                           {item.locations.map(loc => (
                             <div key={loc.id} className="px-3 py-2" style={{ borderTop: '1px solid #f5f5f7' }}>

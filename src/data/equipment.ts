@@ -57,6 +57,19 @@ export function getTechnicianGrade(floorArea: number): string {
   return '초급기술자'
 }
 
+// 기술자 등급 우선순위(숫자가 클수록 상위 등급)
+export const TECHNICIAN_GRADE_RANK: Record<string, number> = {
+  '초급기술자': 1,
+  '중급기술자': 2,
+  '고급기술자': 3,
+  '특급기술자': 4,
+}
+
+// 기술자 등급(grade)이 연면적 기준 최소 요구 등급(minGrade) 이상인지 확인
+export function meetsGradeRequirement(grade: string, minGrade: string): boolean {
+  return (TECHNICIAN_GRADE_RANK[grade] ?? 0) >= (TECHNICIAN_GRADE_RANK[minGrade] ?? 0)
+}
+
 // 연면적 조정계수
 export function getAdjustmentFactor(floorArea: number): number {
   if (floorArea >= 60000) return 2.80

@@ -7,6 +7,7 @@ import {
   getTechnicianGrade,
   getAdjustmentFactor,
   calcDirectLaborCost,
+  meetsGradeRequirement,
 } from '../data/equipment'
 import { buildingsApi, techniciansApi } from '../utils/api'
 import type { Building, Technician, TechnicianGrade } from '../types'
@@ -44,6 +45,19 @@ export default function BuildingRegister() {
   const techGrade = area >= 5000 ? (getTechnicianGrade(area) as TechnicianGrade) : ''
   const adjustFactor = area >= 5000 ? getAdjustmentFactor(area) : 0
   const wageRate = techGrade ? WAGE_RATES[techGrade] : 0
+
+  // 연면적 기준 최소 요구 등급 이상인 기술자만 선택 가능
+  const eligibleTechnicians = useMemo(
+    () => (techGrade ? technicians.filter(t => meetsGradeRequirement(t.grade, techGrade)) : technicians),
+    [technicians, techGrade]
+  )
+
+  // 연면적 변경 등으로 담당 기술자가 더 이상 요건을 충족하지 못하면 선택 해제
+  useEffect(() => {
+    if (assignedTechnicianId && !eligibleTechnicians.some(t => t.id === assignedTechnicianId)) {
+      setAssignedTechnicianId('')
+    }
+  }, [eligibleTechnicians, assignedTechnicianId])
 
   const selectedEquipmentItems = useMemo(() => {
     return EQUIPMENT_LIST
@@ -184,10 +198,16 @@ export default function BuildingRegister() {
               required
             >
               <option value="">기술자를 선택하세요</option>
-              {technicians.map(t => (
+              {eligibleTechnicians.map(t => (
                 <option key={t.id} value={t.id}>{t.name} ({t.grade})</option>
               ))}
             </select>
+            {techGrade && eligibleTechnicians.length === 0 && (
+              <div className="flex items-center gap-1.5 mt-1.5 text-red-600">
+                <AlertCircle size={14} />
+                <span className="text-xs">연면적 기준({techGrade} 이상)을 충족하는 기술자가 없습니다. 기술자 관리에서 등급을 확인하세요.</span>
+              </div>
+            )}
           </div>
         </div>
 

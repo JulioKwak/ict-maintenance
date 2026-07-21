@@ -312,19 +312,6 @@ export default function InspectionReview() {
                   </div>
                 </div>
 
-                {activeEquipmentId && equipmentGroups[activeEquipmentId] && (
-                  <EquipmentReviewDetail
-                    key={activeEquipmentId}
-                    equipmentId={activeEquipmentId}
-                    items={equipmentGroups[activeEquipmentId]}
-                    review={selectedInspection.equipmentReviews[activeEquipmentId]}
-                    locked={selectedInspection.status === '검수완료'}
-                    saving={saving}
-                    onReview={(result, note) => handleEquipmentReview(activeEquipmentId, result, note)}
-                    onZoomPhoto={setZoomPhoto}
-                  />
-                )}
-
                 {/* 종합의견 + 최종 검수완료 */}
                 <div className="card">
                   <label className="block text-sm font-medium mb-1" style={{ color: '#1d1d1f' }}>
@@ -352,6 +339,19 @@ export default function InspectionReview() {
                     </div>
                   )}
                 </div>
+
+                {activeEquipmentId && equipmentGroups[activeEquipmentId] && (
+                  <EquipmentReviewDetail
+                    key={activeEquipmentId}
+                    equipmentId={activeEquipmentId}
+                    items={equipmentGroups[activeEquipmentId]}
+                    review={selectedInspection.equipmentReviews[activeEquipmentId]}
+                    locked={selectedInspection.status === '검수완료'}
+                    saving={saving}
+                    onReview={(result, note) => handleEquipmentReview(activeEquipmentId, result, note)}
+                    onZoomPhoto={setZoomPhoto}
+                  />
+                )}
               </div>
             </div>
           )}
@@ -407,6 +407,38 @@ function EquipmentReviewDetail({
 
   return (
     <div className="space-y-3">
+      {!locked && (
+        <div className="card">
+          <label className="block text-sm font-medium mb-1" style={{ color: '#1d1d1f' }}>
+            설비별 검수 의견 / 보완 사유
+          </label>
+          <textarea
+            value={note}
+            onChange={e => setNote(e.target.value)}
+            className="input-field text-sm resize-none"
+            rows={2}
+            placeholder="검수 의견 또는 보완이 필요한 사항을 입력하세요"
+          />
+          <div className="flex items-center gap-2 mt-3">
+            {review?.result && (
+              <span className={`text-xs px-2 py-0.5 rounded-full ${
+                review.result === '검수완료' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
+              }`}>
+                현재: {review.result}
+              </span>
+            )}
+            <div className="flex gap-2 ml-auto">
+              <button onClick={() => onReview('보완', note)} className="btn-danger text-sm flex items-center gap-1" disabled={saving}>
+                <AlertTriangle size={14} />보완 필요
+              </button>
+              <button onClick={() => onReview('검수완료', note)} className="btn-primary text-sm flex items-center gap-1" disabled={saving}>
+                <CheckCircle size={14} />검수 완료
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="card">
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-medium" style={{ color: '#1d1d1f' }}>{eq?.name}</h3>
@@ -472,38 +504,6 @@ function EquipmentReviewDetail({
           ))}
         </div>
       </div>
-
-      {!locked && (
-        <div className="card">
-          <label className="block text-sm font-medium mb-1" style={{ color: '#1d1d1f' }}>
-            설비별 검수 의견 / 보완 사유
-          </label>
-          <textarea
-            value={note}
-            onChange={e => setNote(e.target.value)}
-            className="input-field text-sm resize-none"
-            rows={2}
-            placeholder="검수 의견 또는 보완이 필요한 사항을 입력하세요"
-          />
-          <div className="flex items-center gap-2 mt-3">
-            {review?.result && (
-              <span className={`text-xs px-2 py-0.5 rounded-full ${
-                review.result === '검수완료' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
-              }`}>
-                현재: {review.result}
-              </span>
-            )}
-            <div className="flex gap-2 ml-auto">
-              <button onClick={() => onReview('보완', note)} className="btn-danger text-sm flex items-center gap-1" disabled={saving}>
-                <AlertTriangle size={14} />보완 필요
-              </button>
-              <button onClick={() => onReview('검수완료', note)} className="btn-primary text-sm flex items-center gap-1" disabled={saving}>
-                <CheckCircle size={14} />검수 완료
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

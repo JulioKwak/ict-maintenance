@@ -80,6 +80,14 @@ export default function InspectionReview() {
 
   const uniqueEquipmentIds = useMemo(() => Object.keys(equipmentGroups), [equipmentGroups])
 
+  // 등록된 설비가 전부 "검수완료"로 처리됐을 때만 최종 검수완료 가능
+  const allEquipmentApproved = useMemo(
+    () => uniqueEquipmentIds.length > 0 && uniqueEquipmentIds.every(
+      id => selectedInspection?.equipmentReviews[id]?.result === '검수완료'
+    ),
+    [uniqueEquipmentIds, selectedInspection]
+  )
+
   const handleSelect = (insp: InspectionForm) => {
     setSelectedId(insp.id)
     setReviewNote(insp.reviewNote)
@@ -336,8 +344,8 @@ export default function InspectionReview() {
                       <button
                         onClick={handleFinalApprove}
                         className="btn-primary text-sm flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
-                        disabled={saving || selectedInspection.status !== '검수중'}
-                        title={selectedInspection.status !== '검수중' ? '모든 설비의 검수가 완료되어야 합니다.' : undefined}
+                        disabled={saving || !allEquipmentApproved}
+                        title={!allEquipmentApproved ? '모든 설비의 검수가 완료되어야 합니다.' : undefined}
                       >
                         <CheckCircle size={14} />최종 검수완료
                       </button>

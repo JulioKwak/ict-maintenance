@@ -1,4 +1,12 @@
-import type { Equipment } from '../types'
+import type { Equipment, EquipmentCategory } from '../types'
+
+// 설비 카테고리별 색상 (AI 생성 메뉴의 설비 카테고리 선택 색상과 통일)
+export const CATEGORY_COLORS: Record<EquipmentCategory, { bg: string; text: string; border: string }> = {
+  통신설비: { bg: '#e8f0fa', text: '#0066cc', border: '#0066cc' },
+  방송설비: { bg: '#e8f5ee', text: '#00aa44', border: '#00aa44' },
+  정보설비: { bg: '#fff4ec', text: '#ff6600', border: '#ff6600' },
+  기타설비: { bg: '#f0eaf5', text: '#7700cc', border: '#7700cc' },
+}
 
 export const EQUIPMENT_LIST: Equipment[] = [
   // 통신설비

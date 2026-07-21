@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Plus, Minus, CheckCircle2, X } from 'lucide-react'
-import { EQUIPMENT_LIST } from '../data/equipment'
+import { EQUIPMENT_LIST, CATEGORY_COLORS } from '../data/equipment'
 import type { EquipmentCategory } from '../types'
 
 const CATEGORIES: EquipmentCategory[] = ['통신설비', '방송설비', '정보설비', '기타설비']
@@ -75,19 +75,24 @@ export default function EquipmentSelector({ checkedEquipment, equipmentQty, onCh
           const selectedNames = EQUIPMENT_LIST
             .filter(eq => eq.category === cat && checkedEquipment[eq.id])
             .map(eq => eq.name)
+          const colors = CATEGORY_COLORS[cat]
           return (
             <div
               key={cat}
               onClick={() => openEquipmentModal(cat)}
-              className="border rounded-xl p-4 cursor-pointer transition-colors border-gray-200 hover:border-blue-400 hover:bg-blue-50/40 flex flex-col"
+              className="border rounded-xl p-4 cursor-pointer transition-colors flex flex-col"
+              style={{ borderColor: colors.border + '40', backgroundColor: colors.bg }}
             >
               <div className="flex items-center justify-between mb-2">
-                <span className="font-semibold text-gray-800 text-sm">{cat}</span>
-                <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-medium whitespace-nowrap">
+                <span className="font-semibold text-sm" style={{ color: colors.text }}>{cat}</span>
+                <span
+                  className="text-xs px-2 py-0.5 rounded-full font-medium whitespace-nowrap"
+                  style={{ backgroundColor: colors.border, color: '#ffffff' }}
+                >
                   {selectedNames.length}개 선택
                 </span>
               </div>
-              <div className="text-xs text-gray-500 leading-relaxed">
+              <div className="text-xs text-gray-600 leading-relaxed">
                 {selectedNames.length > 0 ? selectedNames.join(', ') : '선택된 설비가 없습니다'}
               </div>
             </div>
@@ -106,7 +111,7 @@ export default function EquipmentSelector({ checkedEquipment, equipmentQty, onCh
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center justify-between p-5" style={{ borderBottom: '1px solid #f0f0f0' }}>
-              <h3 className="font-semibold" style={{ color: '#1d1d1f', fontSize: '15px' }}>{openCategoryModal} 설비 선택</h3>
+              <h3 className="font-semibold" style={{ color: CATEGORY_COLORS[openCategoryModal].text, fontSize: '15px' }}>{openCategoryModal} 설비 선택</h3>
               <button type="button" onClick={closeEquipmentModal} style={{ color: '#7a7a7a' }}><X size={20} /></button>
             </div>
 
@@ -137,23 +142,25 @@ export default function EquipmentSelector({ checkedEquipment, equipmentQty, onCh
             </div>
 
             <div className="p-5 space-y-2 overflow-y-auto">
-              {EQUIPMENT_LIST.filter(eq => eq.category === openCategoryModal).map(eq => (
+              {EQUIPMENT_LIST.filter(eq => eq.category === openCategoryModal).map(eq => {
+                const colors = CATEGORY_COLORS[eq.category]
+                return (
                 <div
                   key={eq.id}
-                  className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-colors ${
-                    draftChecked[eq.id]
-                      ? 'border-blue-400 bg-blue-50'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
+                  className="flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-colors"
+                  style={draftChecked[eq.id]
+                    ? { borderColor: colors.border, backgroundColor: colors.bg }
+                    : { borderColor: '#e5e7eb' }}
                   onClick={() => toggleDraftEquipment(eq.id)}
                 >
                   <div className="flex items-center gap-2">
-                    <div className={`w-4 h-4 rounded border flex items-center justify-center ${
-                      draftChecked[eq.id] ? 'bg-blue-600 border-blue-600' : 'border-gray-300'
-                    }`}>
+                    <div
+                      className="w-4 h-4 rounded border flex items-center justify-center"
+                      style={draftChecked[eq.id] ? { backgroundColor: colors.border, borderColor: colors.border } : { borderColor: '#d1d5db' }}
+                    >
                       {draftChecked[eq.id] && <CheckCircle2 size={12} className="text-white" />}
                     </div>
-                    <span className="text-sm text-gray-800">{eq.name}</span>
+                    <span className="text-sm" style={{ color: draftChecked[eq.id] ? colors.text : '#1f2937' }}>{eq.name}</span>
                   </div>
                   {draftChecked[eq.id] && !eq.applyAdjustment && (
                     <div className="flex items-center gap-1.5 ml-2" onClick={e => e.stopPropagation()}>
@@ -179,7 +186,8 @@ export default function EquipmentSelector({ checkedEquipment, equipmentQty, onCh
                     <span className="text-xs text-gray-400 ml-2">1식</span>
                   )}
                 </div>
-              ))}
+                )
+              })}
             </div>
 
             <div className="flex gap-3 p-5" style={{ borderTop: '1px solid #f0f0f0' }}>

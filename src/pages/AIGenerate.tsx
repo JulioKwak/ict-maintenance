@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Sparkles, Download, Info, Loader2, ChevronRight } from 'lucide-react'
 import { buildingsApi } from '../utils/api'
-import { EQUIPMENT_LIST } from '../data/equipment'
+import { EQUIPMENT_LIST, CATEGORY_COLORS } from '../data/equipment'
 import type { Building, EquipmentCategory } from '../types'
 
 type BuildingCategory = '단독건물' | '단지형건물'
@@ -13,13 +13,6 @@ const BUILDING_CATEGORY_LABELS: Record<BuildingCategory, string> = {
 }
 
 const ALL_CATEGORIES: EquipmentCategory[] = ['통신설비', '방송설비', '정보설비', '기타설비']
-
-const CATEGORY_COLORS: Record<EquipmentCategory, { bg: string; text: string; border: string }> = {
-  통신설비: { bg: '#e8f0fa', text: '#0066cc', border: '#0066cc' },
-  방송설비: { bg: '#e8f5ee', text: '#00aa44', border: '#00aa44' },
-  정보설비: { bg: '#fff4ec', text: '#ff6600', border: '#ff6600' },
-  기타설비: { bg: '#f0eaf5', text: '#7700cc', border: '#7700cc' },
-}
 
 function getToken(): string {
   return localStorage.getItem('ict_token') ?? ''

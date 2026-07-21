@@ -2,8 +2,8 @@ import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Building2, Search, ChevronRight, Trash2, Download, ClipboardCheck, Plus, FileText, X, ClipboardList, Pencil } from 'lucide-react'
 import { buildingsApi, inspectionsApi, techniciansApi } from '../utils/api'
-import { EQUIPMENT_LIST, calcDirectLaborCost } from '../data/equipment'
-import type { Building, BuildingStatus, EquipmentCategory, InspectionForm, InspectionType, Technician } from '../types'
+import { EQUIPMENT_LIST, CATEGORY_COLORS, calcDirectLaborCost } from '../data/equipment'
+import type { Building, BuildingStatus, Equipment, EquipmentCategory, InspectionForm, InspectionType, Technician } from '../types'
 import PasswordConfirmModal from '../components/PasswordConfirmModal'
 import EquipmentSelector from '../components/EquipmentSelector'
 import AssignInspectorsModal from '../components/AssignInspectorsModal'
@@ -19,13 +19,6 @@ const STATUS_LABELS: Record<BuildingStatus, string> = {
 const STATUS_COLORS: Record<BuildingStatus, string> = {
   등록: 'status-registered', 작성중: 'status-in-progress', 작성완료: 'status-completed',
   점검표보완: 'status-supplement', 검수완료: 'status-approved',
-}
-
-const CATEGORY_COLORS: Record<EquipmentCategory, { bg: string; text: string; border: string }> = {
-  통신설비: { bg: '#e8f0fa', text: '#0066cc', border: '#0066cc' },
-  방송설비: { bg: '#e8f5ee', text: '#00aa44', border: '#00aa44' },
-  정보설비: { bg: '#fff4ec', text: '#ff6600', border: '#ff6600' },
-  기타설비: { bg: '#f0eaf5', text: '#7700cc', border: '#7700cc' },
 }
 
 const INSP_STATUS_STYLE: Record<string, string> = {
@@ -320,19 +313,22 @@ export default function BuildingManagement() {
                   <div className="flex items-center gap-3 flex-wrap">
                     <h3 className="font-semibold" style={{ color: '#1d1d1f' }}>등록 설비</h3>
                     {!editingEquipment && (() => {
-                      const presentCategories = [...new Set(
-                        selected.equipment
-                          .filter(e => e.checked)
-                          .map(be => EQUIPMENT_LIST.find(e => e.id === be.equipmentId)?.category)
-                          .filter((c): c is EquipmentCategory => !!c)
-                      )]
+                      const checkedEq = selected.equipment
+                        .filter(e => e.checked)
+                        .map(be => EQUIPMENT_LIST.find(e => e.id === be.equipmentId))
+                        .filter((e): e is Equipment => !!e)
+                      const categoryCounts = checkedEq.reduce<Partial<Record<EquipmentCategory, number>>>((acc, eq) => {
+                        acc[eq.category] = (acc[eq.category] ?? 0) + 1
+                        return acc
+                      }, {})
+                      const presentCategories = Object.keys(categoryCounts) as EquipmentCategory[]
                       if (presentCategories.length === 0) return null
                       return (
                         <div className="flex items-center gap-2.5 flex-wrap">
                           {presentCategories.map(cat => (
                             <span key={cat} className="flex items-center gap-1 text-xs" style={{ color: '#7a7a7a' }}>
                               <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[cat].text }} />
-                              {cat}
+                              {cat} ({categoryCounts[cat]})
                             </span>
                           ))}
                         </div>
@@ -458,10 +454,15 @@ export default function BuildingManagement() {
                                 ? quantity * equipment.standardPersonnel * selected.adjustmentFactor
                                 : quantity * equipment.standardPersonnel
                               const cost = Math.round(personnel * selected.wageRate)
+                              const colors = CATEGORY_COLORS[equipment.category]
                               return (
-                                <div key={equipment.id} className="grid grid-cols-4 gap-2 px-3 py-2 rounded-[10px] text-sm" style={{ backgroundColor: '#f5f5f7' }}>
+                                <div
+                                  key={equipment.id}
+                                  className="grid grid-cols-4 gap-2 px-3 py-2 rounded-[10px] text-sm"
+                                  style={{ backgroundColor: colors.bg, borderLeft: `3px solid ${colors.border}` }}
+                                >
                                   <div className="col-span-2">
-                                    <p style={{ color: '#1d1d1f' }}>{equipment.name}</p>
+                                    <p style={{ color: colors.text, fontWeight: 500 }}>{equipment.name}</p>
                                     {!equipment.applyAdjustment && (
                                       <p className="text-xs" style={{ color: '#7a7a7a' }}>{quantity}{equipment.unit} · 조정계수 미적용</p>
                                     )}

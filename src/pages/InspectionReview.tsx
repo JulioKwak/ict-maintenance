@@ -1,11 +1,14 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import { CheckCircle, AlertTriangle, ChevronRight, MessageSquare, ArrowLeft, X } from 'lucide-react'
+import { CheckCircle, AlertTriangle, Circle, ChevronRight, MessageSquare, ArrowLeft, RotateCcw, X } from 'lucide-react'
 import { inspectionsApi, buildingsApi } from '../utils/api'
 import { EQUIPMENT_LIST } from '../data/equipment'
-import type { InspectionForm, Building } from '../types'
+import { useAuth } from '../context/AuthContext'
+import { deriveReviewStatus, INSPECTION_STATUS_STYLE } from '../utils/inspectionStatus'
+import type { InspectionForm, InspectionItem, EquipmentReview, Building } from '../types'
 
 export default function InspectionReview() {
+  const { user } = useAuth()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const paramBuildingId = searchParams.get('buildingId') ?? ''
@@ -14,6 +17,7 @@ export default function InspectionReview() {
   const [inspections, setInspections] = useState<InspectionForm[]>([])
   const [buildings, setBuildings] = useState<Building[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(paramInspectionId || null)
+  const [activeEquipmentId, setActiveEquipmentId] = useState<string | null>(null)
   const [reviewNote, setReviewNote] = useState('')
   const [saving, setSaving] = useState(false)
   const didAutoSelect = useRef(false)
@@ -37,12 +41,14 @@ export default function InspectionReview() {
       didAutoSelect.current = true
       setSelectedId(found.id)
       setReviewNote(found.reviewNote)
+      const ids = [...new Set(found.items.map(i => i.equipmentId))]
+      setActiveEquipmentId(ids[0] ?? null)
     }
   }, [inspections, paramInspectionId])
 
   const reviewTargets = useMemo(() => {
     const base = inspections.filter(
-      i => i.status === '작성완료' || i.status === '점검표보완' || i.status === '검수완료'
+      i => i.status === '작성완료' || i.status === '점검표보완' || i.status === '검수중' || i.status === '검수완료'
     )
     return paramBuildingId ? base.filter(i => i.buildingId === paramBuildingId) : base
   }, [inspections, paramBuildingId])
@@ -62,14 +68,48 @@ export default function InspectionReview() {
     [buildings, paramBuildingId]
   )
 
+  const equipmentGroups = useMemo(() => {
+    const groups: Record<string, InspectionItem[]> = {}
+    if (!selectedInspection) return groups
+    for (const item of selectedInspection.items) {
+      if (!groups[item.equipmentId]) groups[item.equipmentId] = []
+      groups[item.equipmentId].push(item)
+    }
+    return groups
+  }, [selectedInspection])
+
+  const uniqueEquipmentIds = useMemo(() => Object.keys(equipmentGroups), [equipmentGroups])
+
   const handleSelect = (insp: InspectionForm) => {
     setSelectedId(insp.id)
     setReviewNote(insp.reviewNote)
+    const ids = [...new Set(insp.items.map(i => i.equipmentId))]
+    setActiveEquipmentId(ids[0] ?? null)
   }
 
-  const handleApprove = async () => {
+  const handleEquipmentReview = async (eqId: string, result: '보완' | '검수완료', note: string) => {
     if (!selectedInspection) return
-    if (!window.confirm('검수 완료 처리하시겠습니까?')) return
+    if (result === '보완' && !note.trim()) { alert('보완 사유를 입력해주세요.'); return }
+    setSaving(true)
+    try {
+      const updatedReviews = { ...selectedInspection.equipmentReviews, [eqId]: { result, note } }
+      const newStatus = deriveReviewStatus(uniqueEquipmentIds, updatedReviews)
+      const updated = await inspectionsApi.update(selectedInspection.id, { equipmentReviews: updatedReviews, status: newStatus })
+      setInspections(prev => prev.map(i => i.id === updated.id ? updated : i))
+      if (selectedBuilding) {
+        await buildingsApi.update(selectedBuilding.id, { status: newStatus })
+        setBuildings(prev => prev.map(b => b.id === selectedBuilding.id ? { ...b, status: newStatus } : b))
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '처리 중 오류가 발생했습니다.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleFinalApprove = async () => {
+    if (!selectedInspection) return
+    if (!window.confirm('최종 검수 완료 처리하시겠습니까?')) return
     setSaving(true)
     try {
       const updated = await inspectionsApi.update(selectedInspection.id, { status: '검수완료', reviewNote })
@@ -78,7 +118,7 @@ export default function InspectionReview() {
         await buildingsApi.update(selectedBuilding.id, { status: '검수완료' })
         setBuildings(prev => prev.map(b => b.id === selectedBuilding.id ? { ...b, status: '검수완료' } : b))
       }
-      alert('검수 완료 처리되었습니다.')
+      alert('최종 검수 완료 처리되었습니다.')
     } catch (err) {
       alert(err instanceof Error ? err.message : '처리 중 오류가 발생했습니다.')
     } finally {
@@ -86,19 +126,18 @@ export default function InspectionReview() {
     }
   }
 
-  const handleSupplement = async () => {
+  const handleReopenForReview = async () => {
     if (!selectedInspection) return
-    if (!reviewNote.trim()) { alert('보완 사유를 입력해주세요.'); return }
-    if (!window.confirm('보완 필요로 처리하시겠습니까?')) return
+    if (!window.confirm('최종 검수완료를 취소하고 재검수 상태로 되돌리시겠습니까?')) return
     setSaving(true)
     try {
-      const updated = await inspectionsApi.update(selectedInspection.id, { status: '점검표보완', reviewNote })
+      const newStatus = deriveReviewStatus(uniqueEquipmentIds, selectedInspection.equipmentReviews)
+      const updated = await inspectionsApi.update(selectedInspection.id, { status: newStatus })
       setInspections(prev => prev.map(i => i.id === updated.id ? updated : i))
       if (selectedBuilding) {
-        await buildingsApi.update(selectedBuilding.id, { status: '점검표보완' })
-        setBuildings(prev => prev.map(b => b.id === selectedBuilding.id ? { ...b, status: '점검표보완' } : b))
+        await buildingsApi.update(selectedBuilding.id, { status: newStatus })
+        setBuildings(prev => prev.map(b => b.id === selectedBuilding.id ? { ...b, status: newStatus } : b))
       }
-      alert('보완 필요로 처리되었습니다.')
     } catch (err) {
       alert(err instanceof Error ? err.message : '처리 중 오류가 발생했습니다.')
     } finally {
@@ -177,11 +216,9 @@ export default function InspectionReview() {
                       </p>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${
-                        insp.status === '검수완료' ? 'bg-green-100 text-green-700' :
-                        insp.status === '점검표보완' ? 'bg-orange-100 text-orange-700' :
-                        'bg-blue-100 text-blue-700'
-                      }`}>{insp.status}</span>
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${INSPECTION_STATUS_STYLE[insp.status]}`}>
+                        {insp.status}
+                      </span>
                       <ChevronRight size={14} style={{ color: '#e0e0e0' }} />
                     </div>
                   </div>
@@ -201,128 +238,113 @@ export default function InspectionReview() {
               </div>
             </div>
           ) : (
-            <div className="space-y-4">
-              <div className="card">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h2 className="font-semibold" style={{ color: '#1d1d1f' }}>{selectedBuilding?.name}</h2>
-                    <p className="text-sm mt-1" style={{ color: '#7a7a7a' }}>
-                      [{selectedInspection.inspectionType}] {selectedInspection.inspectionDate}
-                      &nbsp;·&nbsp;{selectedBuilding?.address}
-                    </p>
+            <div className="flex flex-col md:flex-row gap-4">
+              {/* 설비 탭 사이드바 */}
+              <div className="md:w-56 shrink-0">
+                <div className="flex md:flex-col gap-2 overflow-x-auto md:overflow-x-visible pb-1 md:pb-0">
+                  {uniqueEquipmentIds.map(eqId => {
+                    const eq = EQUIPMENT_LIST.find(e => e.id === eqId)
+                    const verdict = selectedInspection.equipmentReviews[eqId]?.result ?? ''
+                    const active = activeEquipmentId === eqId
+                    return (
+                      <button
+                        key={eqId}
+                        onClick={() => setActiveEquipmentId(eqId)}
+                        className={`shrink-0 md:shrink md:w-full px-3 py-2.5 rounded-lg border transition-all flex items-center gap-2 text-left text-sm ${
+                          active
+                            ? 'bg-blue-600 text-white border-blue-600'
+                            : verdict === '검수완료'
+                            ? 'bg-green-50 border-green-200 text-green-800'
+                            : verdict === '보완'
+                            ? 'bg-orange-50 border-orange-200 text-orange-800'
+                            : 'bg-white border-gray-200 text-gray-700 hover:border-blue-300'
+                        }`}
+                      >
+                        {verdict === '검수완료' ? (
+                          <CheckCircle size={14} className={active ? 'text-white' : 'text-green-600'} />
+                        ) : verdict === '보완' ? (
+                          <AlertTriangle size={14} className={active ? 'text-white' : 'text-orange-500'} />
+                        ) : (
+                          <Circle size={14} className={active ? 'text-white' : 'text-gray-300'} />
+                        )}
+                        <span className="text-xs leading-tight whitespace-nowrap md:whitespace-normal">
+                          {eq?.name ?? eqId}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* 본문 */}
+              <div className="flex-1 space-y-4 min-w-0">
+                <div className="card">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h2 className="font-semibold" style={{ color: '#1d1d1f' }}>{selectedBuilding?.name}</h2>
+                      <p className="text-sm mt-1" style={{ color: '#7a7a7a' }}>
+                        [{selectedInspection.inspectionType}] {selectedInspection.inspectionDate}
+                        &nbsp;·&nbsp;{selectedBuilding?.address}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${INSPECTION_STATUS_STYLE[selectedInspection.status]}`}>
+                        {selectedInspection.status}
+                      </span>
+                      {user?.role === 'admin' && selectedInspection.status === '검수완료' && (
+                        <button
+                          onClick={handleReopenForReview}
+                          className="btn-secondary text-xs flex items-center gap-1"
+                          disabled={saving}
+                        >
+                          <RotateCcw size={12} />재검수
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <span className={`text-xs px-2.5 py-1 rounded-full font-medium shrink-0 ${
-                    selectedInspection.status === '검수완료' ? 'bg-green-100 text-green-700' :
-                    selectedInspection.status === '점검표보완' ? 'bg-orange-100 text-orange-700' :
-                    'bg-blue-100 text-blue-700'
-                  }`}>{selectedInspection.status}</span>
                 </div>
 
-                <div className="mt-4">
+                {activeEquipmentId && equipmentGroups[activeEquipmentId] && (
+                  <EquipmentReviewDetail
+                    key={activeEquipmentId}
+                    equipmentId={activeEquipmentId}
+                    items={equipmentGroups[activeEquipmentId]}
+                    review={selectedInspection.equipmentReviews[activeEquipmentId]}
+                    locked={selectedInspection.status === '검수완료'}
+                    saving={saving}
+                    onReview={(result, note) => handleEquipmentReview(activeEquipmentId, result, note)}
+                    onZoomPhoto={setZoomPhoto}
+                  />
+                )}
+
+                {/* 종합의견 + 최종 검수완료 */}
+                <div className="card">
                   <label className="block text-sm font-medium mb-1" style={{ color: '#1d1d1f' }}>
-                    검수 의견 / 보완 사유
+                    종합의견
                   </label>
                   <textarea
                     value={reviewNote}
                     onChange={e => setReviewNote(e.target.value)}
                     className="input-field text-sm resize-none"
                     rows={3}
-                    placeholder="검수 의견 또는 보완이 필요한 사항을 입력하세요"
+                    placeholder="전체 점검표에 대한 종합의견을 입력하세요"
                     disabled={selectedInspection.status === '검수완료'}
                   />
+                  {selectedInspection.status !== '검수완료' && (
+                    <div className="flex gap-2 mt-3">
+                      <button onClick={handleSaveNote} className="btn-secondary text-sm" disabled={saving}>의견 저장</button>
+                      <button
+                        onClick={handleFinalApprove}
+                        className="btn-primary text-sm flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={saving || selectedInspection.status !== '검수중'}
+                        title={selectedInspection.status !== '검수중' ? '모든 설비의 검수가 완료되어야 합니다.' : undefined}
+                      >
+                        <CheckCircle size={14} />최종 검수완료
+                      </button>
+                    </div>
+                  )}
                 </div>
-
-                {selectedInspection.status !== '검수완료' && (
-                  <div className="flex gap-2 mt-3">
-                    <button onClick={handleSaveNote} className="btn-secondary text-sm" disabled={saving}>의견 저장</button>
-                    <button onClick={handleSupplement} className="btn-danger text-sm flex items-center gap-1" disabled={saving}>
-                      <AlertTriangle size={14} />보완 필요
-                    </button>
-                    <button onClick={handleApprove} className="btn-primary text-sm flex items-center gap-1" disabled={saving}>
-                      <CheckCircle size={14} />검수 완료
-                    </button>
-                  </div>
-                )}
               </div>
-
-              {Object.entries(
-                selectedInspection.items.reduce<Record<string, typeof selectedInspection.items>>((acc, item) => {
-                  if (!acc[item.equipmentId]) acc[item.equipmentId] = []
-                  acc[item.equipmentId].push(item)
-                  return acc
-                }, {})
-              ).map(([eqId, items]) => {
-                const eq = EQUIPMENT_LIST.find(e => e.id === eqId)
-                const badCount = items.reduce((n, item) =>
-                  n + item.locations.filter(l => l.result === '부적합').length, 0)
-                return (
-                  <div key={eqId} className="card">
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="font-medium" style={{ color: '#1d1d1f' }}>{eq?.name}</h3>
-                      {badCount > 0 && (
-                        <span className="text-xs px-2 py-0.5 bg-red-50 text-red-600 rounded-full">부적합 {badCount}건</span>
-                      )}
-                    </div>
-                    <div className="space-y-2 text-sm">
-                      {items.map(item => (
-                        <div key={item.id} style={{ border: '1px solid #f0f0f0', borderRadius: '10px', overflow: 'hidden' }}>
-                          <div className="px-3 py-2" style={{ backgroundColor: '#f5f5f7' }}>
-                            <div className="flex items-center gap-2">
-                              <span className={`text-xs px-1.5 py-0.5 rounded ${
-                                item.subCategory === '외관' ? 'bg-gray-200 text-gray-700' :
-                                item.subCategory === '기능' ? 'bg-blue-100 text-blue-700' :
-                                'bg-red-50 text-red-700'
-                              }`}>{item.subCategory}</span>
-                              <span style={{ color: '#1d1d1f' }}>{item.content}</span>
-                            </div>
-                            {item.method && item.method.length > 0 && (
-                              <ul className="mt-1.5 space-y-0.5">
-                                {item.method.map((m, i) => (
-                                  <li
-                                    key={i}
-                                    className="text-xs leading-relaxed"
-                                    style={{ color: m.startsWith('※') ? '#c2410c' : '#7a7a7a' }}
-                                  >
-                                    {m.startsWith('※') ? m : `· ${m}`}
-                                  </li>
-                                ))}
-                              </ul>
-                            )}
-                          </div>
-                          {item.locations.map(loc => (
-                            <div key={loc.id} className="px-3 py-2" style={{ borderTop: '1px solid #f5f5f7' }}>
-                              <div className="flex items-center justify-between mb-1">
-                                <span className="text-xs" style={{ color: '#7a7a7a' }}>{loc.location || '위치 미입력'}</span>
-                                <span className={`text-xs px-2 py-0.5 rounded ${
-                                  loc.result === '적합' ? 'bg-green-50 text-green-700' :
-                                  loc.result === '부적합' ? 'bg-red-50 text-red-700' :
-                                  loc.result === '해당없음' ? 'bg-gray-100 text-gray-500' :
-                                  'bg-gray-100 text-gray-400'
-                                }`}>{loc.result || '미입력'}</span>
-                              </div>
-                              {loc.opinion && <p className="text-xs" style={{ color: '#7a7a7a' }}>의견: {loc.opinion}</p>}
-                              {loc.photos.length > 0 && (
-                                <div className="flex flex-wrap gap-1.5 mt-2">
-                                  {loc.photos.map(p => (
-                                    <img
-                                      key={p.id}
-                                      src={p.dataUrl}
-                                      alt=""
-                                      className="w-14 h-14 object-cover rounded cursor-pointer"
-                                      style={{ border: '1px solid #e0e0e0' }}
-                                      onClick={() => setZoomPhoto(p.dataUrl)}
-                                    />
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )
-              })}
             </div>
           )}
         </div>
@@ -348,6 +370,130 @@ export default function InspectionReview() {
             style={{ maxWidth: '90vw', maxHeight: '85vh', objectFit: 'contain' }}
             onClick={e => e.stopPropagation()}
           />
+        </div>
+      )}
+    </div>
+  )
+}
+
+function EquipmentReviewDetail({
+  equipmentId,
+  items,
+  review,
+  locked,
+  saving,
+  onReview,
+  onZoomPhoto,
+}: {
+  equipmentId: string
+  items: InspectionItem[]
+  review: EquipmentReview | undefined
+  locked: boolean
+  saving: boolean
+  onReview: (result: '보완' | '검수완료', note: string) => void
+  onZoomPhoto: (dataUrl: string) => void
+}) {
+  const eq = EQUIPMENT_LIST.find(e => e.id === equipmentId)
+  const [note, setNote] = useState(review?.note ?? '')
+  const badCount = items.reduce((n, item) => n + item.locations.filter(l => l.result === '부적합').length, 0)
+
+  return (
+    <div className="space-y-3">
+      <div className="card">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-medium" style={{ color: '#1d1d1f' }}>{eq?.name}</h3>
+          {badCount > 0 && (
+            <span className="text-xs px-2 py-0.5 bg-red-50 text-red-600 rounded-full">부적합 {badCount}건</span>
+          )}
+        </div>
+        <div className="space-y-2 text-sm">
+          {items.map(item => (
+            <div key={item.id} style={{ border: '1px solid #f0f0f0', borderRadius: '10px', overflow: 'hidden' }}>
+              <div className="px-3 py-2" style={{ backgroundColor: '#f5f5f7' }}>
+                <div className="flex items-center gap-2">
+                  <span className={`text-xs px-1.5 py-0.5 rounded ${
+                    item.subCategory === '외관' ? 'bg-gray-200 text-gray-700' :
+                    item.subCategory === '기능' ? 'bg-blue-100 text-blue-700' :
+                    'bg-red-50 text-red-700'
+                  }`}>{item.subCategory}</span>
+                  <span style={{ color: '#1d1d1f' }}>{item.content}</span>
+                </div>
+                {item.method && item.method.length > 0 && (
+                  <ul className="mt-1.5 space-y-0.5">
+                    {item.method.map((m, i) => (
+                      <li
+                        key={i}
+                        className="text-xs leading-relaxed"
+                        style={{ color: m.startsWith('※') ? '#c2410c' : '#7a7a7a' }}
+                      >
+                        {m.startsWith('※') ? m : `· ${m}`}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              {item.locations.map(loc => (
+                <div key={loc.id} className="px-3 py-2" style={{ borderTop: '1px solid #f5f5f7' }}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs" style={{ color: '#7a7a7a' }}>{loc.location || '위치 미입력'}</span>
+                    <span className={`text-xs px-2 py-0.5 rounded ${
+                      loc.result === '적합' ? 'bg-green-50 text-green-700' :
+                      loc.result === '부적합' ? 'bg-red-50 text-red-700' :
+                      loc.result === '해당없음' ? 'bg-gray-100 text-gray-500' :
+                      'bg-gray-100 text-gray-400'
+                    }`}>{loc.result || '미입력'}</span>
+                  </div>
+                  {loc.opinion && <p className="text-xs" style={{ color: '#7a7a7a' }}>의견: {loc.opinion}</p>}
+                  {loc.photos.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {loc.photos.map(p => (
+                        <img
+                          key={p.id}
+                          src={p.dataUrl}
+                          alt=""
+                          className="w-14 h-14 object-cover rounded cursor-pointer"
+                          style={{ border: '1px solid #e0e0e0' }}
+                          onClick={() => onZoomPhoto(p.dataUrl)}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {!locked && (
+        <div className="card">
+          <label className="block text-sm font-medium mb-1" style={{ color: '#1d1d1f' }}>
+            설비별 검수 의견 / 보완 사유
+          </label>
+          <textarea
+            value={note}
+            onChange={e => setNote(e.target.value)}
+            className="input-field text-sm resize-none"
+            rows={2}
+            placeholder="검수 의견 또는 보완이 필요한 사항을 입력하세요"
+          />
+          <div className="flex items-center gap-2 mt-3">
+            {review?.result && (
+              <span className={`text-xs px-2 py-0.5 rounded-full ${
+                review.result === '검수완료' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
+              }`}>
+                현재: {review.result}
+              </span>
+            )}
+            <div className="flex gap-2 ml-auto">
+              <button onClick={() => onReview('보완', note)} className="btn-danger text-sm flex items-center gap-1" disabled={saving}>
+                <AlertTriangle size={14} />보완 필요
+              </button>
+              <button onClick={() => onReview('검수완료', note)} className="btn-primary text-sm flex items-center gap-1" disabled={saving}>
+                <CheckCircle size={14} />검수 완료
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

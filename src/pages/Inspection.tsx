@@ -6,7 +6,8 @@ import { EQUIPMENT_LIST } from '../data/equipment'
 import { INSPECTION_ITEMS } from '../data/inspectionItems'
 import { useAuth } from '../context/AuthContext'
 import AssignInspectorsModal from '../components/AssignInspectorsModal'
-import type { Building, InspectionForm, InspectionType, InspectionItem, InspectionLocation, InspectionResult, InspectionPhoto, User } from '../types'
+import { deriveReviewStatus, INSPECTION_STATUS_STYLE } from '../utils/inspectionStatus'
+import type { Building, InspectionForm, InspectionFormStatus, InspectionType, InspectionItem, InspectionLocation, InspectionResult, InspectionPhoto, User } from '../types'
 import { format } from 'date-fns'
 
 export default function Inspection() {
@@ -96,6 +97,7 @@ export default function Inspection() {
       items,
       status: '작성중',
       reviewNote: '',
+      equipmentReviews: {},
       assignedInspectorIds: paramInspectorIds,
       createdBy: user?.id ?? '',
       createdAt: new Date().toISOString(),
@@ -167,6 +169,7 @@ export default function Inspection() {
       items,
       status: '작성중',
       reviewNote: '',
+      equipmentReviews: {},
       assignedInspectorIds: [],
       createdBy: user?.id ?? '',
       createdAt: new Date().toISOString(),
@@ -184,12 +187,13 @@ export default function Inspection() {
     try {
       let saved: InspectionForm
       if (formExistsInDb) {
-        saved = await inspectionsApi.update(form.id, { items: form.items, status: '작성중', assignedInspectorIds: form.assignedInspectorIds })
+        saved = await inspectionsApi.update(form.id, { items: form.items, assignedInspectorIds: form.assignedInspectorIds })
       } else {
         saved = await inspectionsApi.create({
           buildingId: form.buildingId, inspectionType: form.inspectionType,
           inspectionDate: form.inspectionDate, items: form.items,
-          status: '작성중', reviewNote: '', assignedInspectorIds: form.assignedInspectorIds, createdBy: form.createdBy,
+          status: '작성중', reviewNote: '', equipmentReviews: form.equipmentReviews,
+          assignedInspectorIds: form.assignedInspectorIds, createdBy: form.createdBy,
         })
         setFormExistsInDb(true)
       }
@@ -209,33 +213,51 @@ export default function Inspection() {
 
   const completeInspection = useCallback(async () => {
     if (!form || saving) return
-    if (!window.confirm('점검을 완료 처리하시겠습니까?')) return
+    const isSupplementFlow = form.status === '점검표보완'
+    if (!window.confirm(isSupplementFlow ? '보완 사항을 제출하시겠습니까?' : '점검을 완료 처리하시겠습니까?')) return
     setSaving(true)
     try {
+      const allEquipmentIds = [...new Set(form.items.map(i => i.equipmentId))]
+      let nextStatus: InspectionFormStatus
+      let nextEquipmentReviews = form.equipmentReviews
+      if (isSupplementFlow) {
+        nextEquipmentReviews = { ...form.equipmentReviews }
+        allEquipmentIds
+          .filter(id => nextEquipmentReviews[id]?.result === '보완')
+          .forEach(id => { delete nextEquipmentReviews[id] })
+        nextStatus = deriveReviewStatus(allEquipmentIds, nextEquipmentReviews)
+      } else {
+        nextStatus = '작성완료'
+      }
+
       let saved: InspectionForm
       if (formExistsInDb) {
-        saved = await inspectionsApi.update(form.id, { items: form.items, status: '작성완료', assignedInspectorIds: form.assignedInspectorIds })
+        saved = await inspectionsApi.update(form.id, {
+          items: form.items, status: nextStatus, equipmentReviews: nextEquipmentReviews,
+          assignedInspectorIds: form.assignedInspectorIds,
+        })
       } else {
         saved = await inspectionsApi.create({
           buildingId: form.buildingId, inspectionType: form.inspectionType,
           inspectionDate: form.inspectionDate, items: form.items,
-          status: '작성완료', reviewNote: '', assignedInspectorIds: form.assignedInspectorIds, createdBy: form.createdBy,
+          status: nextStatus, reviewNote: '', equipmentReviews: nextEquipmentReviews,
+          assignedInspectorIds: form.assignedInspectorIds, createdBy: form.createdBy,
         })
         setFormExistsInDb(true)
       }
       const building = buildings.find(b => b.id === form.buildingId)
       if (building) {
-        await buildingsApi.update(building.id, { status: '작성완료' })
+        await buildingsApi.update(building.id, { status: nextStatus })
       }
       setForm(saved)
-      alert('점검이 완료 처리되었습니다.')
-      navigate('/buildings')
+      alert(isSupplementFlow ? '보완 사항이 제출되었습니다.' : '점검이 완료 처리되었습니다.')
+      navigate(user?.role === 'inspector' ? '/my-inspections' : '/buildings')
     } catch (err) {
       alert(err instanceof Error ? err.message : '처리 중 오류가 발생했습니다.')
     } finally {
       setSaving(false)
     }
-  }, [form, formExistsInDb, buildings, saving])
+  }, [form, formExistsInDb, buildings, saving, user])
 
   const handleApplyInspectors = useCallback(async (ids: string[]) => {
     setForm(prev => prev ? { ...prev, assignedInspectorIds: ids } : prev)
@@ -324,6 +346,19 @@ export default function Inspection() {
     }
     return map
   }, [form])
+
+  // 보완 필요 상태일 땐 보완 대상 설비만 노출 — 선택된 설비가 목록에서 사라지면 첫 설비로 전환
+  useEffect(() => {
+    if (!form) return
+    const ids = [...new Set(form.items.map(i => i.equipmentId))]
+    const visibleIds = form.status === '점검표보완'
+      ? ids.filter(id => form.equipmentReviews?.[id]?.result === '보완')
+      : ids
+    if (visibleIds.length > 0 && !visibleIds.includes(activeEquipmentId ?? '')) {
+      setActiveEquipmentId(visibleIds[0])
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form?.status, form?.id])
 
   if (step === 'select') {
     return (
@@ -428,7 +463,9 @@ export default function Inspection() {
     equipmentGroups[item.equipmentId].push(item)
   }
 
-  const uniqueEquipmentIds = [...new Set(form.items.map(i => i.equipmentId))]
+  const uniqueEquipmentIds = form.status === '점검표보완'
+    ? [...new Set(form.items.map(i => i.equipmentId))].filter(id => form.equipmentReviews?.[id]?.result === '보완')
+    : [...new Set(form.items.map(i => i.equipmentId))]
 
   return (
     <div className="flex flex-col md:flex-row gap-4">
@@ -474,11 +511,7 @@ export default function Inspection() {
               <p className="text-xs text-gray-500 mt-0.5">
                 [{form.inspectionType}] {form.inspectionDate}
                 {form.status !== '작성중' && (
-                  <span className={`ml-2 px-2 py-0.5 rounded text-xs ${
-                    form.status === '검수완료' ? 'bg-green-100 text-green-700' :
-                    form.status === '점검표보완' ? 'bg-orange-100 text-orange-700' :
-                    'bg-blue-100 text-blue-700'
-                  }`}>{form.status}</span>
+                  <span className={`ml-2 px-2 py-0.5 rounded text-xs ${INSPECTION_STATUS_STYLE[form.status]}`}>{form.status}</span>
                 )}
               </p>
             </div>
@@ -490,9 +523,9 @@ export default function Inspection() {
             <button onClick={saveItem} className="btn-secondary flex items-center gap-1.5 text-xs py-1.5 px-3">
               <Save size={13} />저장
             </button>
-            {form.status === '작성중' && (
+            {(form.status === '작성중' || form.status === '점검표보완') && (
               <button onClick={completeInspection} className="btn-primary flex items-center gap-1.5 text-xs py-1.5 px-3">
-                <CheckCircle size={13} />점검 완료
+                <CheckCircle size={13} />{form.status === '점검표보완' ? '보완 완료' : '점검 완료'}
               </button>
             )}
           </div>
@@ -538,7 +571,7 @@ export default function Inspection() {
             onUpdateLocation={updateItemLocation}
             onAddLocation={addLocation}
             onRemoveLocation={removeLocation}
-            readonly={form.status === '검수완료'}
+            readonly={form.status !== '작성중' && form.status !== '점검표보완'}
           />
         )}
       </div>
@@ -578,6 +611,13 @@ function EquipmentInspectionPanel({
         <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">{eq?.category}</span>
         <span className="font-semibold text-gray-800">{eq?.name}</span>
       </div>
+
+      {form.status === '점검표보완' && form.equipmentReviews[equipmentId]?.note && (
+        <div className="px-4 py-3 rounded-lg text-sm" style={{ backgroundColor: 'rgba(255,149,0,0.08)', border: '1px solid rgba(255,149,0,0.3)' }}>
+          <p className="text-xs font-medium mb-1" style={{ color: '#c2410c' }}>검수자 보완 사유</p>
+          <p style={{ color: '#7c2d12' }}>{form.equipmentReviews[equipmentId].note}</p>
+        </div>
+      )}
 
       {items.map(item => (
         <div key={item.id} className="card p-0 overflow-hidden">

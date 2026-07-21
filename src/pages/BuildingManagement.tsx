@@ -9,23 +9,17 @@ import EquipmentSelector from '../components/EquipmentSelector'
 import AssignInspectorsModal from '../components/AssignInspectorsModal'
 import { useAuth } from '../context/AuthContext'
 import { canDelete } from '../utils/permissions'
+import { INSPECTION_STATUS_STYLE } from '../utils/inspectionStatus'
 import { format } from 'date-fns'
 import * as XLSX from 'xlsx'
 
 const STATUS_LABELS: Record<BuildingStatus, string> = {
-  등록: '등록', 작성중: '작성 중', 작성완료: '작성 완료', 점검표보완: '보완 필요', 검수완료: '검수 완료',
+  등록: '등록', 작성중: '작성 중', 작성완료: '작성 완료', 점검표보완: '보완 필요', 검수중: '검수 중', 검수완료: '검수 완료',
 }
 
 const STATUS_COLORS: Record<BuildingStatus, string> = {
   등록: 'status-registered', 작성중: 'status-in-progress', 작성완료: 'status-completed',
-  점검표보완: 'status-supplement', 검수완료: 'status-approved',
-}
-
-const INSP_STATUS_STYLE: Record<string, string> = {
-  작성중:   'bg-yellow-50 text-yellow-700',
-  작성완료: 'bg-blue-50 text-blue-700',
-  점검표보완: 'bg-orange-50 text-orange-700',
-  검수완료: 'bg-green-50 text-green-700',
+  점검표보완: 'status-supplement', 검수중: 'status-review', 검수완료: 'status-approved',
 }
 
 export default function BuildingManagement() {
@@ -200,7 +194,7 @@ export default function BuildingManagement() {
           </div>
 
           <div className="flex flex-wrap gap-1">
-            {(['전체', '등록', '작성중', '작성완료', '점검표보완', '검수완료'] as const).map(s => (
+            {(['전체', '등록', '작성중', '작성완료', '점검표보완', '검수중', '검수완료'] as const).map(s => (
               <button key={s} onClick={() => setStatusFilter(s)}
                 className="text-xs px-2.5 py-1 rounded-full border transition-colors"
                 style={{
@@ -542,7 +536,7 @@ export default function BuildingManagement() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2 shrink-0 ml-2">
-                          <span className={`text-xs px-2 py-0.5 rounded ${INSP_STATUS_STYLE[insp.status] ?? 'bg-gray-100 text-gray-600'}`}>
+                          <span className={`text-xs px-2 py-0.5 rounded ${INSPECTION_STATUS_STYLE[insp.status] ?? 'bg-gray-100 text-gray-600'}`}>
                             {insp.status}
                           </span>
                           {canDelete(user?.role) && (

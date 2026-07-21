@@ -5,7 +5,7 @@ import { buildingsApi, techniciansApi } from '../utils/api'
 import type { Building, Technician, BuildingStatus, TechnicianGrade } from '../types'
 
 const STATUS_LABELS: Record<BuildingStatus, string> = {
-  등록: '등록', 작성중: '작성 중', 작성완료: '작성 완료', 점검표보완: '보완 필요', 검수완료: '검수 완료',
+  등록: '등록', 작성중: '작성 중', 작성완료: '작성 완료', 점검표보완: '보완 필요', 검수중: '검수 중', 검수완료: '검수 완료',
 }
 
 const STATUS_COLORS: Record<BuildingStatus, string> = {
@@ -13,6 +13,7 @@ const STATUS_COLORS: Record<BuildingStatus, string> = {
   작성중: 'bg-yellow-100 text-yellow-700',
   작성완료: 'bg-blue-100 text-blue-700',
   점검표보완: 'bg-orange-100 text-orange-700',
+  검수중: 'bg-purple-100 text-purple-700',
   검수완료: 'bg-green-100 text-green-700',
 }
 
@@ -30,7 +31,7 @@ export default function Dashboard() {
 
   const statusCounts = useMemo(() => {
     const counts: Record<BuildingStatus, number> = {
-      등록: 0, 작성중: 0, 작성완료: 0, 점검표보완: 0, 검수완료: 0,
+      등록: 0, 작성중: 0, 작성완료: 0, 점검표보완: 0, 검수중: 0, 검수완료: 0,
     }
     buildings.forEach(b => { counts[b.status]++ })
     return counts

@@ -44,6 +44,7 @@ export type BuildingStatus =
   | '작성중'
   | '작성완료'
   | '점검표보완'
+  | '검수중'
   | '검수완료'
 
 // 건축물 등록 설비 (수량 포함)
@@ -116,7 +117,17 @@ export type InspectionFormStatus =
   | '작성중'
   | '작성완료'
   | '점검표보완'
+  | '검수중'
   | '검수완료'
+
+// 설비별 검수 결과
+export type EquipmentReviewResult = '보완' | '검수완료' | ''
+
+// 설비별 검수 의견/보완 사유
+export interface EquipmentReview {
+  result: EquipmentReviewResult
+  note: string
+}
 
 // 점검표
 export interface InspectionForm {
@@ -127,6 +138,7 @@ export interface InspectionForm {
   items: InspectionItem[]
   status: InspectionFormStatus
   reviewNote: string
+  equipmentReviews: Record<string, EquipmentReview>
   assignedInspectorIds: string[]
   createdBy: string
   createdAt: string

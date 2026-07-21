@@ -520,9 +520,11 @@ export default function Inspection() {
             </button>
           </div>
           <div className="flex gap-2 flex-wrap">
-            <button onClick={saveItem} className="btn-secondary flex items-center gap-1.5 text-xs py-1.5 px-3">
-              <Save size={13} />저장
-            </button>
+            {form.status !== '검수완료' && (
+              <button onClick={saveItem} className="btn-secondary flex items-center gap-1.5 text-xs py-1.5 px-3">
+                <Save size={13} />저장
+              </button>
+            )}
             {(form.status === '작성중' || form.status === '점검표보완') && (
               <button onClick={completeInspection} className="btn-primary flex items-center gap-1.5 text-xs py-1.5 px-3">
                 <CheckCircle size={13} />{form.status === '점검표보완' ? '보완 완료' : '점검 완료'}
@@ -543,7 +545,7 @@ export default function Inspection() {
                 )
               })
             )}
-            {user?.role !== 'inspector' && (
+            {user?.role !== 'inspector' && form.status !== '검수완료' && (
               <button
                 onClick={() => setShowAssignModal(true)}
                 className="text-xs font-medium shrink-0 ml-1"

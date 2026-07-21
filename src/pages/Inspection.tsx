@@ -651,27 +651,31 @@ function LocationRow({
           ctx.drawImage(img, 0, 0, W, H)
 
           // 보드판 오버레이
-          const boardH = Math.round(H * 0.28)
+          const boardH = Math.round(H * 0.2)
           ctx.fillStyle = 'rgba(0,0,0,0.72)'
           ctx.fillRect(0, H - boardH, W, boardH)
 
-          const resultLine = loc.opinion
-            ? `점검결과: ${loc.result || '-'} / ${loc.opinion}`
-            : `점검결과: ${loc.result || '-'}`
           const lines = [
-            `건축물명: ${building.name}`,
-            `주소: ${building.address}`,
-            `설비분류: ${eq?.category ?? ''}`,
-            `설비명: ${eq?.name ?? ''}`,
-            `점검항목: ${item.subCategory} / ${item.content}`,
-            `점검세부위치: ${loc.location || ''}`,
-            `점검일자: ${form.inspectionDate}`,
-            resultLine,
+            `건축물명: ${building.name} (${building.address})`,
+            `설비분류: ${eq?.category ?? ''} (${eq?.name ?? ''})`,
+            `점검항목: ${item.subCategory} | ${item.content}`,
+            `점검세부위치: ${loc.location || ''} (${form.inspectionDate})`,
+            loc.opinion
+              ? `점검결과: ${loc.result || '-'} (${loc.opinion})`
+              : `점검결과: ${loc.result || '-'}`,
           ]
           const lineH = boardH / (lines.length + 0.5)
+          const maxTextWidth = W - 24
+          const baseFontSize = Math.round(lineH * 0.7)
           ctx.fillStyle = '#ffffff'
-          ctx.font = `${Math.round(lineH * 0.7)}px sans-serif`
+          ctx.textBaseline = 'alphabetic'
           lines.forEach((line, i) => {
+            let fontSize = baseFontSize
+            ctx.font = `${fontSize}px sans-serif`
+            while (fontSize > 8 && ctx.measureText(line).width > maxTextWidth) {
+              fontSize -= 1
+              ctx.font = `${fontSize}px sans-serif`
+            }
             ctx.fillText(line, 12, H - boardH + lineH * (i + 0.9))
           })
 

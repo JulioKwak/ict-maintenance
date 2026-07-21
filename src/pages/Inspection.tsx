@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { ChevronDown, ChevronRight, Plus, Trash2, Camera, CheckCircle, XCircle, Minus, AlertTriangle, Save, X } from 'lucide-react'
-import { buildingsApi, inspectionsApi, generateId } from '../utils/api'
+import { buildingsApi, inspectionsApi, usersApi, generateId } from '../utils/api'
 import { EQUIPMENT_LIST } from '../data/equipment'
 import { INSPECTION_ITEMS } from '../data/inspectionItems'
 import { useAuth } from '../context/AuthContext'
-import type { Building, InspectionForm, InspectionType, InspectionItem, InspectionLocation, InspectionResult, InspectionPhoto } from '../types'
+import AssignInspectorsModal from '../components/AssignInspectorsModal'
+import type { Building, InspectionForm, InspectionType, InspectionItem, InspectionLocation, InspectionResult, InspectionPhoto, User } from '../types'
 import { format } from 'date-fns'
 
 export default function Inspection() {
@@ -18,6 +19,7 @@ export default function Inspection() {
   const paramInspectionId = searchParams.get('inspectionId') ?? ''
   const paramDate = searchParams.get('date') ?? format(new Date(), 'yyyy-MM-dd')
   const paramType = (searchParams.get('type') as InspectionType | null) ?? '기능점검'
+  const paramInspectorIds = (searchParams.get('inspectors') ?? '').split(',').filter(Boolean)
 
   const [step, setStep] = useState<'select' | 'form'>('select')
   const [selectedBuildingId, setSelectedBuildingId] = useState(paramBuildingId)
@@ -32,11 +34,14 @@ export default function Inspection() {
 
   const [buildings, setBuildings] = useState<Building[]>([])
   const [inspections, setInspections] = useState<InspectionForm[]>([])
+  const [users, setUsers] = useState<User[]>([])
+  const [showAssignModal, setShowAssignModal] = useState(false)
 
   useEffect(() => {
     Promise.all([
       buildingsApi.getAll().then(setBuildings),
       inspectionsApi.getAll().then(setInspections),
+      usersApi.getAll().then(setUsers),
     ]).catch(() => {}).finally(() => setLoaded(true))
   }, [])
 
@@ -91,6 +96,7 @@ export default function Inspection() {
       items,
       status: '작성중',
       reviewNote: '',
+      assignedInspectorIds: paramInspectorIds,
       createdBy: user?.id ?? '',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -161,6 +167,7 @@ export default function Inspection() {
       items,
       status: '작성중',
       reviewNote: '',
+      assignedInspectorIds: [],
       createdBy: user?.id ?? '',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -177,12 +184,12 @@ export default function Inspection() {
     try {
       let saved: InspectionForm
       if (formExistsInDb) {
-        saved = await inspectionsApi.update(form.id, { items: form.items, status: '작성중' })
+        saved = await inspectionsApi.update(form.id, { items: form.items, status: '작성중', assignedInspectorIds: form.assignedInspectorIds })
       } else {
         saved = await inspectionsApi.create({
           buildingId: form.buildingId, inspectionType: form.inspectionType,
           inspectionDate: form.inspectionDate, items: form.items,
-          status: '작성중', reviewNote: '', createdBy: form.createdBy,
+          status: '작성중', reviewNote: '', assignedInspectorIds: form.assignedInspectorIds, createdBy: form.createdBy,
         })
         setFormExistsInDb(true)
       }
@@ -207,12 +214,12 @@ export default function Inspection() {
     try {
       let saved: InspectionForm
       if (formExistsInDb) {
-        saved = await inspectionsApi.update(form.id, { items: form.items, status: '작성완료' })
+        saved = await inspectionsApi.update(form.id, { items: form.items, status: '작성완료', assignedInspectorIds: form.assignedInspectorIds })
       } else {
         saved = await inspectionsApi.create({
           buildingId: form.buildingId, inspectionType: form.inspectionType,
           inspectionDate: form.inspectionDate, items: form.items,
-          status: '작성완료', reviewNote: '', createdBy: form.createdBy,
+          status: '작성완료', reviewNote: '', assignedInspectorIds: form.assignedInspectorIds, createdBy: form.createdBy,
         })
         setFormExistsInDb(true)
       }
@@ -229,6 +236,17 @@ export default function Inspection() {
       setSaving(false)
     }
   }, [form, formExistsInDb, buildings, saving])
+
+  const handleApplyInspectors = useCallback(async (ids: string[]) => {
+    setForm(prev => prev ? { ...prev, assignedInspectorIds: ids } : prev)
+    if (!formExistsInDb || !form) return
+    try {
+      const updated = await inspectionsApi.update(form.id, { assignedInspectorIds: ids })
+      setForm(updated)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '점검자 지정 중 오류가 발생했습니다.')
+    }
+  }, [form, formExistsInDb])
 
   const updateItemLocation = useCallback((
     itemId: string,
@@ -478,7 +496,38 @@ export default function Inspection() {
               </button>
             )}
           </div>
+          <div className="flex items-center gap-1.5 flex-wrap mt-2.5 pt-2.5" style={{ borderTop: '1px solid #f0f0f0' }}>
+            <span className="text-xs shrink-0" style={{ color: '#7a7a7a' }}>점검자</span>
+            {form.assignedInspectorIds.length === 0 ? (
+              <span className="text-xs" style={{ color: '#cccccc' }}>미지정</span>
+            ) : (
+              form.assignedInspectorIds.map(id => {
+                const inspector = users.find(u => u.id === id)
+                return (
+                  <span key={id} className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: 'rgba(0,102,204,0.08)', color: '#0066cc' }}>
+                    {inspector?.name ?? id}
+                  </span>
+                )
+              })
+            )}
+            {user?.role !== 'inspector' && (
+              <button
+                onClick={() => setShowAssignModal(true)}
+                className="text-xs font-medium shrink-0 ml-1"
+                style={{ color: '#0066cc' }}
+              >
+                지정 변경
+              </button>
+            )}
+          </div>
         </div>
+
+        <AssignInspectorsModal
+          isOpen={showAssignModal}
+          selectedIds={form.assignedInspectorIds}
+          onClose={() => setShowAssignModal(false)}
+          onApply={handleApplyInspectors}
+        />
 
         {activeEquipmentId && equipmentGroups[activeEquipmentId] && (
           <EquipmentInspectionPanel

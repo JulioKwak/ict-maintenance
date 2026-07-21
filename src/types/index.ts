@@ -127,6 +127,7 @@ export interface InspectionForm {
   items: InspectionItem[]
   status: InspectionFormStatus
   reviewNote: string
+  assignedInspectorIds: string[]
   createdBy: string
   createdAt: string
   updatedAt: string

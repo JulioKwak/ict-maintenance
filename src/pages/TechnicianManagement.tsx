@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo, type FormEvent } from 'react'
 import { Plus, Pencil, Trash2, X, HardHat } from 'lucide-react'
 import { techniciansApi } from '../utils/api'
 import { formatPhone } from '../utils/phone'
+import { useAuth } from '../context/AuthContext'
+import { canDelete } from '../utils/permissions'
 import type { Technician, TechnicianGrade } from '../types'
 
 const GRADES: TechnicianGrade[] = ['특급기술자', '고급기술자', '중급기술자', '초급기술자']
@@ -18,6 +20,7 @@ const emptyForm = (): Omit<Technician, 'id' | 'createdAt'> => ({
 })
 
 export default function TechnicianManagement() {
+  const { user } = useAuth()
   const [technicians, setTechnicians] = useState<Technician[]>([])
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<Technician | null>(null)
@@ -117,9 +120,11 @@ export default function TechnicianManagement() {
                     <button onClick={() => openEdit(t)} className="p-2" style={{ color: '#0066cc' }}>
                       <Pencil size={15} />
                     </button>
+                    {canDelete(user?.role) && (
                     <button onClick={() => handleDelete(t)} className="p-2" style={{ color: '#ff3b30' }}>
                       <Trash2 size={15} />
                     </button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -150,9 +155,11 @@ export default function TechnicianManagement() {
                         <button onClick={() => openEdit(t)} className="p-1 mr-1" style={{ color: '#0066cc' }}>
                           <Pencil size={14} />
                         </button>
+                        {canDelete(user?.role) && (
                         <button onClick={() => handleDelete(t)} className="p-1" style={{ color: '#ff3b30' }}>
                           <Trash2 size={14} />
                         </button>
+                        )}
                       </td>
                     </tr>
                   ))}

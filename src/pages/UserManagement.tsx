@@ -3,6 +3,7 @@ import { Plus, Pencil, Trash2, X, Users } from 'lucide-react'
 import { usersApi } from '../utils/api'
 import { formatPhone } from '../utils/phone'
 import { useAuth } from '../context/AuthContext'
+import { canDelete } from '../utils/permissions'
 import type { User, UserRole } from '../types'
 
 const ROLES: { value: UserRole; label: string }[] = [
@@ -116,6 +117,7 @@ export default function UserManagement() {
                     <button onClick={() => openEdit(u)} className="p-2" style={{ color: '#0066cc' }}>
                       <Pencil size={15} />
                     </button>
+                    {canDelete(currentUser?.role) && (
                     <button
                       onClick={() => handleDelete(u)}
                       disabled={u.id === currentUser?.id}
@@ -124,6 +126,7 @@ export default function UserManagement() {
                     >
                       <Trash2 size={15} />
                     </button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -161,10 +164,12 @@ export default function UserManagement() {
                         <button onClick={() => openEdit(u)} className="p-1 mr-1" style={{ color: '#0066cc' }}>
                           <Pencil size={14} />
                         </button>
+                        {canDelete(currentUser?.role) && (
                         <button onClick={() => handleDelete(u)} disabled={u.id === currentUser?.id}
                           className="p-1 disabled:opacity-30 disabled:cursor-not-allowed" style={{ color: '#ff3b30' }}>
                           <Trash2 size={14} />
                         </button>
+                        )}
                       </td>
                     </tr>
                   ))}

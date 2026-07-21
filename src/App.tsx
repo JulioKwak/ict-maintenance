@@ -1,5 +1,6 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
+import { canAccessPath, homePathForRole } from './utils/permissions'
 import Layout from './components/Layout'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
@@ -10,10 +11,15 @@ import BuildingManagement from './pages/BuildingManagement'
 import AIGenerate from './pages/AIGenerate'
 import TechnicianManagement from './pages/TechnicianManagement'
 import UserManagement from './pages/UserManagement'
+import MyInspections from './pages/MyInspections'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user } = useAuth()
+  const location = useLocation()
   if (!user) return <Navigate to="/login" replace />
+  if (!canAccessPath(user.role, location.pathname)) {
+    return <Navigate to={homePathForRole(user.role)} replace />
+  }
   return <Layout>{children}</Layout>
 }
 
@@ -21,8 +27,8 @@ function AppRoutes() {
   const { user } = useAuth()
   return (
     <Routes>
-      <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <Login />} />
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/login" element={user ? <Navigate to={homePathForRole(user.role)} replace /> : <Login />} />
+      <Route path="/" element={<Navigate to={homePathForRole(user?.role)} replace />} />
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/building-register" element={<ProtectedRoute><BuildingRegister /></ProtectedRoute>} />
       <Route path="/inspection" element={<ProtectedRoute><Inspection /></ProtectedRoute>} />
@@ -31,7 +37,8 @@ function AppRoutes() {
       <Route path="/ai-generate" element={<ProtectedRoute><AIGenerate /></ProtectedRoute>} />
       <Route path="/technicians" element={<ProtectedRoute><TechnicianManagement /></ProtectedRoute>} />
       <Route path="/users" element={<ProtectedRoute><UserManagement /></ProtectedRoute>} />
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/my-inspections" element={<ProtectedRoute><MyInspections /></ProtectedRoute>} />
+      <Route path="*" element={<Navigate to={homePathForRole(user?.role)} replace />} />
     </Routes>
   )
 }

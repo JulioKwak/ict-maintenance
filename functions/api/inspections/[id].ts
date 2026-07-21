@@ -12,6 +12,7 @@ function rowToForm(r: Row) {
     items: JSON.parse(r.items_json || '[]'),
     status: r.status,
     reviewNote: r.review_note,
+    assignedInspectorIds: JSON.parse(r.assigned_inspectors_json || '[]'),
     createdBy: r.created_by,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
@@ -33,11 +34,12 @@ export const onRequestPut: PagesFunction<Env, string, Data> = async ({ request, 
   if (!row) return Response.json({ error: '점검표를 찾을 수 없습니다.' }, { status: 404 })
 
   await env.DB.prepare(
-    `UPDATE inspection_forms SET items_json=?, status=?, review_note=?, updated_at=? WHERE id=?`
+    `UPDATE inspection_forms SET items_json=?, status=?, review_note=?, assigned_inspectors_json=?, updated_at=? WHERE id=?`
   ).bind(
     JSON.stringify(b.items ?? JSON.parse(row.items_json || '[]')),
     b.status ?? row.status,
     b.reviewNote ?? row.review_note,
+    JSON.stringify(b.assignedInspectorIds ?? JSON.parse(row.assigned_inspectors_json || '[]')),
     now, id
   ).run()
 

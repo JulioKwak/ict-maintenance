@@ -16,6 +16,7 @@ function rowToForm(r: Row) {
     items: JSON.parse(r.items_json || '[]'),
     status: r.status,
     reviewNote: r.review_note,
+    assignedInspectorIds: JSON.parse(r.assigned_inspectors_json || '[]'),
     createdBy: r.created_by,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
@@ -41,14 +42,15 @@ export const onRequestPost: PagesFunction<Env, string, Data> = async ({ request,
 
   await env.DB.prepare(`
     INSERT INTO inspection_forms
-      (id, building_id, inspection_type, inspection_date, items_json, status, review_note, created_by, created_at, updated_at)
-    VALUES (?,?,?,?,?,?,?,?,?,?)
+      (id, building_id, inspection_type, inspection_date, items_json, status, review_note, assigned_inspectors_json, created_by, created_at, updated_at)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?)
   `).bind(
     id,
     b.buildingId, b.inspectionType, b.inspectionDate,
     JSON.stringify(b.items ?? []),
     b.status ?? '작성중',
     b.reviewNote ?? '',
+    JSON.stringify(b.assignedInspectorIds ?? []),
     data.username ?? b.createdBy ?? '',
     now, now
   ).run()

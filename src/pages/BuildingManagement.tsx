@@ -6,6 +6,9 @@ import { EQUIPMENT_LIST, calcDirectLaborCost } from '../data/equipment'
 import type { Building, BuildingStatus, EquipmentCategory, InspectionForm, InspectionType, Technician } from '../types'
 import PasswordConfirmModal from '../components/PasswordConfirmModal'
 import EquipmentSelector from '../components/EquipmentSelector'
+import AssignInspectorsModal from '../components/AssignInspectorsModal'
+import { useAuth } from '../context/AuthContext'
+import { canDelete } from '../utils/permissions'
 import { format } from 'date-fns'
 import * as XLSX from 'xlsx'
 
@@ -34,6 +37,7 @@ const INSP_STATUS_STYLE: Record<string, string> = {
 
 export default function BuildingManagement() {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [buildings, setBuildings] = useState<Building[]>([])
   const [allInspections, setAllInspections] = useState<InspectionForm[]>([])
   const [technicians, setTechnicians] = useState<Technician[]>([])
@@ -45,6 +49,8 @@ export default function BuildingManagement() {
   const [showNewInspModal, setShowNewInspModal] = useState(false)
   const [newInspDate, setNewInspDate] = useState(format(new Date(), 'yyyy-MM-dd'))
   const [newInspType, setNewInspType] = useState<InspectionType>('기능점검')
+  const [newInspInspectorIds, setNewInspInspectorIds] = useState<string[]>([])
+  const [showAssignModal, setShowAssignModal] = useState(false)
 
   // 비밀번호 확인 모달
   const [pwModal, setPwModal] = useState<{ open: boolean; title: string; onConfirm: () => Promise<void> }>({
@@ -297,12 +303,14 @@ export default function BuildingManagement() {
                   <button onClick={() => exportEstimate(selected)} className="btn-secondary text-sm flex items-center gap-1.5">
                     <Download size={14} />견적서 엑셀
                   </button>
+                  {canDelete(user?.role) && (
                   <button
                     onClick={() => confirmDeleteBuilding(selected)}
                     className="btn-danger text-sm flex items-center gap-1.5 ml-auto"
                   >
                     <Trash2 size={14} />삭제
                   </button>
+                  )}
                 </div>
               </div>
 
@@ -491,7 +499,7 @@ export default function BuildingManagement() {
                     점검 내역 {selectedInspections.length > 0 && `(${selectedInspections.length}건)`}
                   </h3>
                   <button
-                    onClick={() => { setShowNewInspModal(true); setNewInspDate(format(new Date(), 'yyyy-MM-dd')); setNewInspType('기능점검') }}
+                    onClick={() => { setShowNewInspModal(true); setNewInspDate(format(new Date(), 'yyyy-MM-dd')); setNewInspType('기능점검'); setNewInspInspectorIds([]) }}
                     className="flex items-center gap-1 text-sm font-medium"
                     style={{ color: '#0066cc' }}
                   >
@@ -504,7 +512,7 @@ export default function BuildingManagement() {
                     <ClipboardList size={28} className="mx-auto mb-2 opacity-40" />
                     <p className="text-sm">점검 내역이 없습니다.</p>
                     <button
-                      onClick={() => setShowNewInspModal(true)}
+                      onClick={() => { setShowNewInspModal(true); setNewInspInspectorIds([]) }}
                       className="btn-primary text-sm mt-3"
                     >
                       + 첫 점검표 작성
@@ -536,6 +544,7 @@ export default function BuildingManagement() {
                           <span className={`text-xs px-2 py-0.5 rounded ${INSP_STATUS_STYLE[insp.status] ?? 'bg-gray-100 text-gray-600'}`}>
                             {insp.status}
                           </span>
+                          {canDelete(user?.role) && (
                           <button
                             onClick={e => { e.stopPropagation(); confirmDeleteInspection(insp) }}
                             className="p-1 rounded-md transition-colors"
@@ -546,6 +555,7 @@ export default function BuildingManagement() {
                           >
                             <Trash2 size={13} />
                           </button>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -595,10 +605,23 @@ export default function BuildingManagement() {
                   ))}
                 </div>
               </div>
+              <div>
+                <label className="block text-sm font-medium mb-1.5" style={{ color: '#1d1d1f' }}>점검자 지정</label>
+                <button
+                  type="button"
+                  onClick={() => setShowAssignModal(true)}
+                  className="btn-secondary w-full text-sm"
+                >
+                  점검자 지정{newInspInspectorIds.length > 0 ? ` (${newInspInspectorIds.length}명)` : ''}
+                </button>
+              </div>
               <div className="flex gap-3 pt-1">
                 <button
                   onClick={() => {
-                    navigate(`/inspection?buildingId=${selected.id}&date=${newInspDate}&type=${encodeURIComponent(newInspType)}`)
+                    const inspectorsParam = newInspInspectorIds.length > 0
+                      ? `&inspectors=${newInspInspectorIds.join(',')}`
+                      : ''
+                    navigate(`/inspection?buildingId=${selected.id}&date=${newInspDate}&type=${encodeURIComponent(newInspType)}${inspectorsParam}`)
                     setShowNewInspModal(false)
                   }}
                   className="btn-primary flex-1"
@@ -611,6 +634,14 @@ export default function BuildingManagement() {
           </div>
         </div>
       )}
+
+      {/* ── 점검자 지정 모달 ── */}
+      <AssignInspectorsModal
+        isOpen={showAssignModal}
+        selectedIds={newInspInspectorIds}
+        onClose={() => setShowAssignModal(false)}
+        onApply={setNewInspInspectorIds}
+      />
 
       {/* ── 비밀번호 확인 모달 ── */}
       <PasswordConfirmModal

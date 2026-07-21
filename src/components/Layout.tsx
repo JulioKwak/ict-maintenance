@@ -7,17 +7,20 @@ import {
   Sparkles,
   HardHat,
   Users,
+  ClipboardList,
   LogOut,
   Menu,
   X,
   ChevronRight,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { canAccessPath } from '../utils/permissions'
 
 const NAV_ITEMS = [
   { path: '/dashboard',         label: '대시보드',    icon: LayoutDashboard },
   { path: '/building-register', label: '건축물 등록', icon: Building2 },
   { path: '/buildings',         label: '건축물 관리', icon: Wrench },
+  { path: '/my-inspections',    label: '점검표 작성', icon: ClipboardList },
   { path: '/ai-generate',       label: 'AI 생성',    icon: Sparkles },
   { path: '/technicians',       label: '기술자 관리', icon: HardHat },
   { path: '/users',             label: '사용자 관리', icon: Users },
@@ -26,6 +29,7 @@ const NAV_ITEMS = [
 const MOBILE_TAB_ITEMS = [
   { path: '/dashboard',         label: '대시보드', icon: LayoutDashboard },
   { path: '/buildings',         label: '건축물',   icon: Wrench },
+  { path: '/my-inspections',    label: '점검표 작성', icon: ClipboardList },
   { path: '/ai-generate',       label: 'AI생성',   icon: Sparkles },
   { path: '/technicians',       label: '기술자',   icon: HardHat },
 ]
@@ -47,6 +51,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     reviewer: '검토자',
     inspector: '점검자',
   }[user?.role ?? 'inspector']
+
+  const visibleNavItems = NAV_ITEMS.filter(n => canAccessPath(user?.role, n.path))
+  const visibleMobileTabItems = MOBILE_TAB_ITEMS.filter(n => canAccessPath(user?.role, n.path))
 
   const isActive = (path: string) =>
     location.pathname === path || location.pathname.startsWith(path + '/')
@@ -85,7 +92,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
         {/* 내비 */}
         <nav className="flex-1 py-2 overflow-y-auto">
-          {NAV_ITEMS.map(({ path, label, icon: Icon }) => {
+          {visibleNavItems.map(({ path, label, icon: Icon }) => {
             const active = isActive(path)
             return (
               <Link
@@ -185,7 +192,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
             {/* 내비 */}
             <nav className="flex-1 py-2 overflow-y-auto">
-              {NAV_ITEMS.map(({ path, label, icon: Icon }) => {
+              {visibleNavItems.map(({ path, label, icon: Icon }) => {
                 const active = isActive(path)
                 return (
                   <Link
@@ -260,7 +267,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         style={{ backgroundColor: '#ffffff', borderTop: '1px solid #e0e0e0' }}
       >
         <div className="flex">
-          {MOBILE_TAB_ITEMS.map(({ path, label, icon: Icon }) => {
+          {visibleMobileTabItems.map(({ path, label, icon: Icon }) => {
             const active = isActive(path)
             return (
               <Link

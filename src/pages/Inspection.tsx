@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import { ChevronDown, ChevronRight, Plus, Trash2, Camera, CheckCircle, XCircle, Minus, AlertTriangle, Save } from 'lucide-react'
+import { ChevronDown, ChevronRight, Plus, Trash2, Camera, CheckCircle, XCircle, Minus, AlertTriangle, Save, X } from 'lucide-react'
 import { buildingsApi, inspectionsApi, generateId } from '../utils/api'
 import { EQUIPMENT_LIST } from '../data/equipment'
 import { INSPECTION_ITEMS } from '../data/inspectionItems'
@@ -629,6 +629,7 @@ function LocationRow({
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const eq = EQUIPMENT_LIST.find(e => e.id === item.equipmentId)
+  const [zoomPhoto, setZoomPhoto] = useState<string | null>(null)
 
   const handlePhotoUpload = (files: FileList | null) => {
     if (!files) return
@@ -756,7 +757,8 @@ function LocationRow({
                 <img
                   src={photo.dataUrl}
                   alt="점검사진"
-                  className="w-20 h-20 object-cover rounded border border-gray-200"
+                  className="w-20 h-20 object-cover rounded border border-gray-200 cursor-pointer"
+                  onClick={() => setZoomPhoto(photo.dataUrl)}
                 />
                 {!readonly && (
                   <button
@@ -788,6 +790,29 @@ function LocationRow({
           />
         </div>
       </div>
+
+      {/* 사진 확대 팝업 */}
+      {zoomPhoto && (
+        <div
+          className="fixed inset-0 bg-black/85 flex items-center justify-center z-50 p-4"
+          onClick={() => setZoomPhoto(null)}
+        >
+          <button
+            className="absolute top-4 right-4 p-2 rounded-full"
+            style={{ backgroundColor: 'rgba(255,255,255,0.15)', color: '#ffffff' }}
+            onClick={() => setZoomPhoto(null)}
+          >
+            <X size={22} />
+          </button>
+          <img
+            src={zoomPhoto}
+            alt="점검사진 확대"
+            className="max-w-full max-h-full rounded-lg"
+            style={{ maxWidth: '90vw', maxHeight: '85vh', objectFit: 'contain' }}
+            onClick={e => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   )
 }

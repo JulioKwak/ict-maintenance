@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Building2, Search, ChevronRight, Trash2, Download, ClipboardCheck, Plus, FileText, X, ClipboardList, Pencil } from 'lucide-react'
 import { buildingsApi, inspectionsApi, techniciansApi } from '../utils/api'
 import { EQUIPMENT_LIST, calcDirectLaborCost } from '../data/equipment'
-import type { Building, BuildingStatus, InspectionForm, InspectionType, Technician } from '../types'
+import type { Building, BuildingStatus, EquipmentCategory, InspectionForm, InspectionType, Technician } from '../types'
 import PasswordConfirmModal from '../components/PasswordConfirmModal'
 import EquipmentSelector from '../components/EquipmentSelector'
 import { format } from 'date-fns'
@@ -16,6 +16,13 @@ const STATUS_LABELS: Record<BuildingStatus, string> = {
 const STATUS_COLORS: Record<BuildingStatus, string> = {
   등록: 'status-registered', 작성중: 'status-in-progress', 작성완료: 'status-completed',
   점검표보완: 'status-supplement', 검수완료: 'status-approved',
+}
+
+const CATEGORY_COLORS: Record<EquipmentCategory, { bg: string; text: string; border: string }> = {
+  통신설비: { bg: '#e8f0fa', text: '#0066cc', border: '#0066cc' },
+  방송설비: { bg: '#e8f5ee', text: '#00aa44', border: '#00aa44' },
+  정보설비: { bg: '#fff4ec', text: '#ff6600', border: '#ff6600' },
+  기타설비: { bg: '#f0eaf5', text: '#7700cc', border: '#7700cc' },
 }
 
 const INSP_STATUS_STYLE: Record<string, string> = {
@@ -301,8 +308,29 @@ export default function BuildingManagement() {
 
               {/* 등록 설비 */}
               <div className="card">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-semibold" style={{ color: '#1d1d1f' }}>등록 설비</h3>
+                <div className="flex items-center justify-between mb-3 gap-3 flex-wrap">
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <h3 className="font-semibold" style={{ color: '#1d1d1f' }}>등록 설비</h3>
+                    {!editingEquipment && (() => {
+                      const presentCategories = [...new Set(
+                        selected.equipment
+                          .filter(e => e.checked)
+                          .map(be => EQUIPMENT_LIST.find(e => e.id === be.equipmentId)?.category)
+                          .filter((c): c is EquipmentCategory => !!c)
+                      )]
+                      if (presentCategories.length === 0) return null
+                      return (
+                        <div className="flex items-center gap-2.5 flex-wrap">
+                          {presentCategories.map(cat => (
+                            <span key={cat} className="flex items-center gap-1 text-xs" style={{ color: '#7a7a7a' }}>
+                              <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[cat].text }} />
+                              {cat}
+                            </span>
+                          ))}
+                        </div>
+                      )
+                    })()}
+                  </div>
                   {!editingEquipment && (
                     <button
                       onClick={() => startEditEquipment(selected)}
@@ -341,8 +369,9 @@ export default function BuildingManagement() {
                     ) : (
                       selected.equipment.filter(e => e.checked).map(be => {
                         const eq = EQUIPMENT_LIST.find(e => e.id === be.equipmentId)
+                        const colors = eq ? CATEGORY_COLORS[eq.category] : CATEGORY_COLORS.기타설비
                         return (
-                          <span key={be.equipmentId} className="text-xs px-2.5 py-1 rounded-full" style={{ backgroundColor: 'rgba(0,102,204,0.08)', color: '#0066cc' }}>
+                          <span key={be.equipmentId} className="text-xs px-2.5 py-1 rounded-full" style={{ backgroundColor: colors.bg, color: colors.text }}>
                             {eq?.name ?? be.equipmentId}
                             {!eq?.applyAdjustment && ` (${be.quantity}${eq?.unit})`}
                           </span>

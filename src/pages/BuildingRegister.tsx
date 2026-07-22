@@ -27,6 +27,7 @@ export default function BuildingRegister() {
     wageRatesApi.getAll().then(setWageRateSets).catch(() => {})
   }, [])
 
+  const [companyName, setCompanyName] = useState('')
   const [name, setName] = useState('')
   const [address, setAddress] = useState('')
   const [showAddressSearch, setShowAddressSearch] = useState(false)
@@ -104,6 +105,7 @@ export default function BuildingRegister() {
     if (!name || !address || area < 5000 || !assignedTechnicianId) return
 
     const buildingData: Omit<Building, 'id' | 'createdAt' | 'updatedAt'> = {
+      companyName,
       name,
       address,
       floorArea: area,
@@ -126,6 +128,7 @@ export default function BuildingRegister() {
       overheadRate,
       techFeeRate,
       discountRate: 0,
+      inspectionSchedule: { maintenanceH1: true, maintenanceH2: true, performance: true },
       totalCost,
       status: '등록',
     }
@@ -148,6 +151,16 @@ export default function BuildingRegister() {
       <div className="card">
         <h2 className="font-semibold text-gray-800 mb-4 pb-2 border-b">기본 정보</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">회사명</label>
+            <input
+              type="text"
+              value={companyName}
+              onChange={e => setCompanyName(e.target.value)}
+              className="input-field"
+              placeholder="발주처/고객사명을 입력하세요"
+            />
+          </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">건축물명 <span className="text-red-500">*</span></label>
             <input
@@ -341,7 +354,7 @@ export default function BuildingRegister() {
           <CostRow label={`기술료 (${techFeeRate}%)`} value={fmt(techFee)} />
           <CostRow label="부가가치세 (10%)" value={fmt(vat)} />
           <div className="border-t pt-2 mt-2 flex justify-between">
-            <span className="font-bold text-gray-900">총 대가(1회 점검 비용)</span>
+            <span className="font-bold text-gray-900">합계(1회 점검 비용)</span>
             <span className="font-bold text-blue-700 text-base">{fmt(totalCost)}</span>
           </div>
         </div>

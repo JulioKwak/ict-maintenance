@@ -1,4 +1,4 @@
-import type { Equipment, EquipmentCategory, TechnicianGrade, WageRateSet, CostCalculation } from '../types'
+import type { Equipment, EquipmentCategory, TechnicianGrade, WageRateSet, CostCalculation, InspectionSchedule } from '../types'
 
 // 설비 카테고리별 색상 (AI 생성 메뉴의 설비 카테고리 선택 색상과 통일)
 export const CATEGORY_COLORS: Record<EquipmentCategory, { bg: string; text: string; border: string }> = {
@@ -113,14 +113,21 @@ export function calcCostBreakdown(
   directExpense: number,
   overheadRate: number,
   techFeeRate: number,
-  discountRate: number
+  discountRate: number,
+  count: number = 1
 ): CostCalculation {
   const overheadCost = Math.round(directLaborCost * overheadRate / 100)
   const techFee = Math.round((directLaborCost + overheadCost) * techFeeRate / 100)
-  const rawSubtotal = directLaborCost + directExpense + overheadCost + techFee
-  const discountAmount = Math.round(rawSubtotal * discountRate / 100)
-  const subtotal = rawSubtotal - discountAmount
+  const perInstanceTotal = directLaborCost + directExpense + overheadCost + techFee
+  const supplyPrice = perInstanceTotal * count
+  const discountAmount = Math.round(supplyPrice * discountRate / 100)
+  const subtotal = supplyPrice - discountAmount
   const vat = Math.round(subtotal * 0.1)
   const totalCost = Math.round(subtotal + vat)
-  return { directLaborCost, directExpense, overheadCost, techFee, discountAmount, subtotal, vat, totalCost }
+  return { directLaborCost, directExpense, overheadCost, techFee, supplyPrice, discountAmount, subtotal, vat, totalCost }
+}
+
+// 유지관리점검(상반기/하반기)/성능점검 중 체크된 항목 수 — 대가산정 시 공급가 계산의 "횟수"
+export function countCheckedInspections(schedule: InspectionSchedule): number {
+  return (schedule.maintenanceH1 ? 1 : 0) + (schedule.maintenanceH2 ? 1 : 0) + (schedule.performance ? 1 : 0)
 }

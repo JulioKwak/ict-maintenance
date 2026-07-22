@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Building2, Search, ChevronRight, Trash2, Download, ClipboardCheck, Plus, FileText, X, ClipboardList, Pencil } from 'lucide-react'
-import { buildingsApi, inspectionsApi, techniciansApi } from '../utils/api'
-import { EQUIPMENT_LIST, CATEGORY_COLORS, calcDirectLaborCost, calcCostBreakdown } from '../data/equipment'
+import { buildingsApi, inspectionsApi, techniciansApi, wageRatesApi } from '../utils/api'
+import { EQUIPMENT_LIST, CATEGORY_COLORS, calcDirectLaborCost, calcCostBreakdown, countCheckedInspections, getTechnicianGrade, getAdjustmentFactor, meetsGradeRequirement, resolveWageRates } from '../data/equipment'
 import { onlyDigits, toMoneyDisplay } from '../utils/money'
-import type { Building, BuildingStatus, Equipment, EquipmentCategory, InspectionForm, InspectionType, Technician } from '../types'
+import AddressSearchModal from '../components/AddressSearchModal'
+import type { Building, BuildingStatus, Equipment, EquipmentCategory, InspectionForm, InspectionType, Technician, TechnicianGrade, WageRateSet } from '../types'
 import PasswordConfirmModal from '../components/PasswordConfirmModal'
 import EquipmentSelector from '../components/EquipmentSelector'
 import AssignInspectorsModal from '../components/AssignInspectorsModal'
@@ -29,6 +30,7 @@ export default function BuildingManagement() {
   const [buildings, setBuildings] = useState<Building[]>([])
   const [allInspections, setAllInspections] = useState<InspectionForm[]>([])
   const [technicians, setTechnicians] = useState<Technician[]>([])
+  const [wageRateSets, setWageRateSets] = useState<WageRateSet[]>([])
   const [search, setSearch] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<BuildingStatus | '전체'>('전체')
@@ -52,6 +54,7 @@ export default function BuildingManagement() {
   const [showEstimateEdit, setShowEstimateEdit] = useState(false)
   const [estimateForm, setEstimateForm] = useState({
     travel: '', vehicle: '', fieldExpense: '', overheadRate: 110, techFeeRate: 20, discountRate: 0,
+    maintenanceH1: true, maintenanceH2: true, performance: true,
   })
   const [savingEstimate, setSavingEstimate] = useState(false)
 
@@ -61,8 +64,17 @@ export default function BuildingManagement() {
   const [editQty, setEditQty] = useState<Record<string, number>>({})
   const [savingEquipment, setSavingEquipment] = useState(false)
 
+  // 건축물 수정 팝업 (기본 정보)
+  const [showBuildingEdit, setShowBuildingEdit] = useState(false)
+  const [showAddressSearchEdit, setShowAddressSearchEdit] = useState(false)
+  const [buildingEditForm, setBuildingEditForm] = useState({
+    companyName: '', name: '', address: '', floorArea: '', assignedTechnicianId: '',
+  })
+  const [savingBuildingEdit, setSavingBuildingEdit] = useState(false)
+
   useEffect(() => {
     buildingsApi.getAll().then(setBuildings).catch(() => {})
+    wageRatesApi.getAll().then(setWageRateSets).catch(() => {})
     inspectionsApi.getAll().then(setAllInspections).catch(() => {})
     techniciansApi.getAll().then(setTechnicians).catch(() => {})
   }, [])
@@ -82,6 +94,69 @@ export default function BuildingManagement() {
     () => allInspections.filter(i => i.buildingId === selectedId).sort((a, b) => b.inspectionDate.localeCompare(a.inspectionDate)),
     [allInspections, selectedId]
   )
+
+  // 건축물 수정 팝업 - 연면적 기준 파생값(건축물 등록 화면과 동일한 로직)
+  const editArea = parseFloat(buildingEditForm.floorArea) || 0
+  const editTechGrade = editArea >= 5000 ? (getTechnicianGrade(editArea) as TechnicianGrade) : ''
+  const editAdjustFactor = editArea >= 5000 ? getAdjustmentFactor(editArea) : 0
+  const editCurrentYearRates = resolveWageRates(wageRateSets, new Date().getFullYear())
+  const editWageRate = editTechGrade && editCurrentYearRates ? editCurrentYearRates[editTechGrade] : 0
+  const editEligibleTechnicians = useMemo(
+    () => (editTechGrade ? technicians.filter(t => meetsGradeRequirement(t.grade, editTechGrade)) : technicians),
+    [technicians, editTechGrade]
+  )
+
+  useEffect(() => {
+    if (buildingEditForm.assignedTechnicianId && !editEligibleTechnicians.some(t => t.id === buildingEditForm.assignedTechnicianId)) {
+      setBuildingEditForm(f => ({ ...f, assignedTechnicianId: '' }))
+    }
+  }, [editEligibleTechnicians, buildingEditForm.assignedTechnicianId])
+
+  const openBuildingEdit = (building: Building) => {
+    setBuildingEditForm({
+      companyName: building.companyName ?? '',
+      name: building.name,
+      address: building.address,
+      floorArea: String(building.floorArea),
+      assignedTechnicianId: building.assignedTechnicianId ?? '',
+    })
+    setShowBuildingEdit(true)
+  }
+
+  const handleSaveBuildingEdit = async (building: Building) => {
+    if (!buildingEditForm.name || !buildingEditForm.address || editArea < 5000 || !buildingEditForm.assignedTechnicianId) return
+
+    const eqItems = building.equipment.filter(e => e.checked).map(be => ({
+      equipment: EQUIPMENT_LIST.find(eq => eq.id === be.equipmentId),
+      quantity: be.quantity,
+    })).filter((x): x is { equipment: Equipment; quantity: number } => !!x.equipment)
+
+    const directLaborCost = calcDirectLaborCost(eqItems, editAdjustFactor, editWageRate)
+    const directExpense = building.directCost.travel + building.directCost.vehicle + building.directCost.fieldExpense
+    const count = countCheckedInspections(building.inspectionSchedule ?? { maintenanceH1: true, maintenanceH2: true, performance: true })
+    const { totalCost } = calcCostBreakdown(directLaborCost, directExpense, building.overheadRate, building.techFeeRate, building.discountRate ?? 0, count)
+
+    setSavingBuildingEdit(true)
+    try {
+      const updated = await buildingsApi.update(building.id, {
+        companyName: buildingEditForm.companyName,
+        name: buildingEditForm.name,
+        address: buildingEditForm.address,
+        floorArea: editArea,
+        technicianGrade: editTechGrade as TechnicianGrade,
+        wageRate: editWageRate,
+        adjustmentFactor: editAdjustFactor,
+        assignedTechnicianId: buildingEditForm.assignedTechnicianId,
+        totalCost,
+      })
+      setBuildings(prev => prev.map(b => (b.id === building.id ? updated : b)))
+      setShowBuildingEdit(false)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '건축물 수정 중 오류가 발생했습니다.')
+    } finally {
+      setSavingBuildingEdit(false)
+    }
+  }
 
   const confirmDeleteBuilding = (building: Building) => {
     setPwModal({
@@ -120,7 +195,8 @@ export default function BuildingManagement() {
 
     const directLaborCost = calcDirectLaborCost(eqItems, building.adjustmentFactor, building.wageRate)
     const directExpense = building.directCost.travel + building.directCost.vehicle + building.directCost.fieldExpense
-    const { totalCost } = calcCostBreakdown(directLaborCost, directExpense, building.overheadRate, building.techFeeRate, building.discountRate ?? 0)
+    const count = countCheckedInspections(building.inspectionSchedule ?? { maintenanceH1: true, maintenanceH2: true, performance: true })
+    const { totalCost } = calcCostBreakdown(directLaborCost, directExpense, building.overheadRate, building.techFeeRate, building.discountRate ?? 0, count)
 
     setSavingEquipment(true)
     try {
@@ -142,6 +218,9 @@ export default function BuildingManagement() {
       overheadRate: building.overheadRate,
       techFeeRate: building.techFeeRate,
       discountRate: building.discountRate ?? 0,
+      maintenanceH1: building.inspectionSchedule?.maintenanceH1 ?? true,
+      maintenanceH2: building.inspectionSchedule?.maintenanceH2 ?? true,
+      performance: building.inspectionSchedule?.performance ?? true,
     })
     setShowEstimateEdit(true)
   }
@@ -159,8 +238,14 @@ export default function BuildingManagement() {
       fieldExpense: Number(estimateForm.fieldExpense) || 0,
     }
     const directExpense = directCost.travel + directCost.vehicle + directCost.fieldExpense
+    const inspectionSchedule = {
+      maintenanceH1: estimateForm.maintenanceH1,
+      maintenanceH2: estimateForm.maintenanceH2,
+      performance: estimateForm.performance,
+    }
+    const count = countCheckedInspections(inspectionSchedule)
     const { totalCost } = calcCostBreakdown(
-      directLaborCost, directExpense, estimateForm.overheadRate, estimateForm.techFeeRate, estimateForm.discountRate
+      directLaborCost, directExpense, estimateForm.overheadRate, estimateForm.techFeeRate, estimateForm.discountRate, count
     )
 
     setSavingEstimate(true)
@@ -170,6 +255,7 @@ export default function BuildingManagement() {
         overheadRate: estimateForm.overheadRate,
         techFeeRate: estimateForm.techFeeRate,
         discountRate: estimateForm.discountRate,
+        inspectionSchedule,
         totalCost,
       })
       setBuildings(prev => prev.map(b => (b.id === building.id ? updated : b)))
@@ -342,16 +428,146 @@ export default function BuildingManagement() {
                   <button onClick={() => exportEstimate(selected)} className="btn-secondary text-sm flex items-center gap-1.5">
                     <Download size={14} />견적서 엑셀
                   </button>
+                  <button
+                    onClick={() => openBuildingEdit(selected)}
+                    className="btn-secondary text-sm flex items-center gap-1.5 ml-auto"
+                  >
+                    <Pencil size={14} />건축물 수정
+                  </button>
                   {canDelete(user?.role) && (
                   <button
                     onClick={() => confirmDeleteBuilding(selected)}
-                    className="btn-danger text-sm flex items-center gap-1.5 ml-auto"
+                    className="btn-danger text-sm flex items-center gap-1.5"
                   >
                     <Trash2 size={14} />삭제
                   </button>
                   )}
                 </div>
               </div>
+
+              {/* 건축물 수정 팝업 */}
+              {showBuildingEdit && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                  <div className="bg-white w-full max-w-lg max-h-[85vh] flex flex-col" style={{ borderRadius: '18px', border: '1px solid #e0e0e0' }}>
+                    <div className="flex items-center justify-between p-5 shrink-0" style={{ borderBottom: '1px solid #f0f0f0' }}>
+                      <h3 className="font-semibold" style={{ color: '#1d1d1f', fontSize: '15px' }}>건축물 수정</h3>
+                      <button onClick={() => setShowBuildingEdit(false)} style={{ color: '#7a7a7a' }}><X size={20} /></button>
+                    </div>
+                    <div className="overflow-y-auto p-5 space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">회사명</label>
+                        <input
+                          type="text"
+                          value={buildingEditForm.companyName}
+                          onChange={e => setBuildingEditForm(f => ({ ...f, companyName: e.target.value }))}
+                          className="input-field"
+                          placeholder="발주처/고객사명을 입력하세요"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">건축물명 <span className="text-red-500">*</span></label>
+                        <input
+                          type="text"
+                          value={buildingEditForm.name}
+                          onChange={e => setBuildingEditForm(f => ({ ...f, name: e.target.value }))}
+                          className="input-field"
+                          placeholder="건축물명을 입력하세요"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">주소 <span className="text-red-500">*</span></label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={buildingEditForm.address}
+                            onChange={e => setBuildingEditForm(f => ({ ...f, address: e.target.value }))}
+                            className="input-field"
+                            placeholder="건축물 주소를 입력하세요"
+                            required
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowAddressSearchEdit(true)}
+                            className="btn-secondary text-sm px-3 shrink-0 flex items-center gap-1"
+                          >
+                            <Search size={14} />주소 검색
+                          </button>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">연면적 (㎡) <span className="text-red-500">*</span></label>
+                        <input
+                          type="number"
+                          value={buildingEditForm.floorArea}
+                          onChange={e => setBuildingEditForm(f => ({ ...f, floorArea: e.target.value }))}
+                          className="input-field"
+                          placeholder="연면적을 입력하세요 (예: 12345.67)"
+                          min="0"
+                          step="0.01"
+                        />
+                        {buildingEditForm.floorArea && editArea < 5000 && (
+                          <div className="flex items-center gap-1.5 mt-1.5" style={{ color: '#ff3b30' }}>
+                            <span className="text-xs">유지보수관리 대상 건축물이 아닙니다. (연면적 5,000㎡ 미만)</span>
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">담당 기술자 <span className="text-red-500">*</span></label>
+                        <select
+                          value={buildingEditForm.assignedTechnicianId}
+                          onChange={e => setBuildingEditForm(f => ({ ...f, assignedTechnicianId: e.target.value }))}
+                          className="input-field"
+                          required
+                        >
+                          <option value="">기술자를 선택하세요</option>
+                          {editEligibleTechnicians.map(t => (
+                            <option key={t.id} value={t.id}>{t.name} ({t.grade})</option>
+                          ))}
+                        </select>
+                        {editTechGrade && editEligibleTechnicians.length === 0 && (
+                          <div className="flex items-center gap-1.5 mt-1.5" style={{ color: '#ff3b30' }}>
+                            <span className="text-xs">연면적 기준({editTechGrade} 이상)을 충족하는 기술자가 없습니다.</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {editArea >= 5000 && (
+                        <div className="p-3 rounded-lg flex flex-wrap gap-6 text-sm" style={{ backgroundColor: 'rgba(0,102,204,0.06)' }}>
+                          <div>
+                            <span style={{ color: '#7a7a7a' }}>기술자 등급:</span>
+                            <span className="ml-2 font-semibold" style={{ color: '#0066cc' }}>{editTechGrade}</span>
+                          </div>
+                          <div>
+                            <span style={{ color: '#7a7a7a' }}>노임단가:</span>
+                            <span className="ml-2 font-semibold" style={{ color: '#0066cc' }}>{editWageRate.toLocaleString()}원</span>
+                          </div>
+                          <div>
+                            <span style={{ color: '#7a7a7a' }}>연면적 조정계수:</span>
+                            <span className="ml-2 font-semibold" style={{ color: '#0066cc' }}>{editAdjustFactor}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex gap-3 p-5 shrink-0" style={{ borderTop: '1px solid #f0f0f0' }}>
+                      <button
+                        onClick={() => handleSaveBuildingEdit(selected)}
+                        className="btn-primary flex-1 disabled:opacity-60"
+                        disabled={savingBuildingEdit}
+                      >
+                        {savingBuildingEdit ? '저장 중...' : '저장'}
+                      </button>
+                      <button onClick={() => setShowBuildingEdit(false)} className="btn-secondary flex-1">취소</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <AddressSearchModal
+                isOpen={showAddressSearchEdit}
+                onClose={() => setShowAddressSearchEdit(false)}
+                onSelect={addr => setBuildingEditForm(f => ({ ...f, address: addr }))}
+              />
 
               {/* 등록 설비 */}
               <div className="card">
@@ -440,8 +656,10 @@ export default function BuildingManagement() {
                 })).filter(x => x.equipment)
                 const directLaborCost = Math.round(calcDirectLaborCost(eqItems, selected.adjustmentFactor, selected.wageRate))
                 const directExpense = selected.directCost.travel + selected.directCost.vehicle + selected.directCost.fieldExpense
-                const { overheadCost, techFee, discountAmount, subtotal, vat } = calcCostBreakdown(
-                  directLaborCost, directExpense, selected.overheadRate, selected.techFeeRate, selected.discountRate ?? 0
+                const schedule = selected.inspectionSchedule ?? { maintenanceH1: true, maintenanceH2: true, performance: true }
+                const count = countCheckedInspections(schedule)
+                const { overheadCost, techFee, supplyPrice, discountAmount, subtotal, vat } = calcCostBreakdown(
+                  directLaborCost, directExpense, selected.overheadRate, selected.techFeeRate, selected.discountRate ?? 0, count
                 )
                 const totalPersonnel = eqItems.reduce((sum, { equipment, quantity }) => {
                   const personnel = equipment.applyAdjustment
@@ -468,15 +686,8 @@ export default function BuildingManagement() {
                         { label: `직접경비 (여비 + 차량운행비 + 현장소요경비)`, value: fmt(directExpense) },
                         { label: `제경비 (${selected.overheadRate}%)`, value: fmt(overheadCost) },
                         { label: `기술료 (${selected.techFeeRate}%)`, value: fmt(techFee) },
-                        { label: `할인 (${selected.discountRate ?? 0}%)`, value: discountAmount > 0 ? `-${fmt(discountAmount)}` : fmt(0), isDiscount: true },
-                        { label: '소계', value: fmt(subtotal), isSubtotal: true },
-                        { label: '부가가치세 (10%)', value: fmt(vat) },
-                      ].map(({ label, value, clickable, isDiscount, isSubtotal }) => (
-                        <div
-                          key={label}
-                          className={`flex justify-between items-center py-2 ${isSubtotal ? 'font-semibold' : ''}`}
-                          style={{ borderBottom: '1px solid #f0f0f0' }}
-                        >
+                      ].map(({ label, value, clickable }) => (
+                        <div key={label} className="flex justify-between items-center py-2" style={{ borderBottom: '1px solid #f0f0f0' }}>
                           {clickable ? (
                             <button
                               onClick={() => setShowLaborPopup(true)}
@@ -486,8 +697,44 @@ export default function BuildingManagement() {
                               {label}
                             </button>
                           ) : (
-                            <span style={{ color: isDiscount ? '#ff3b30' : isSubtotal ? '#7c3aed' : '#7a7a7a' }}>{label}</span>
+                            <span style={{ color: '#7a7a7a' }}>{label}</span>
                           )}
+                          <span className="font-medium ml-4 shrink-0" style={{ color: '#1d1d1f' }}>{value}</span>
+                        </div>
+                      ))}
+                      {schedule.maintenanceH1 && (
+                        <div className="flex justify-between items-center py-2" style={{ borderBottom: '1px solid #f0f0f0' }}>
+                          <span style={{ color: '#7a7a7a' }}>유지관리점검(상반기)</span>
+                          <span className="font-medium ml-4 shrink-0" style={{ color: '#1d1d1f' }}>1회</span>
+                        </div>
+                      )}
+                      {schedule.maintenanceH2 && (
+                        <div className="flex justify-between items-center py-2" style={{ borderBottom: '1px solid #f0f0f0' }}>
+                          <span style={{ color: '#7a7a7a' }}>유지관리점검(하반기)</span>
+                          <span className="font-medium ml-4 shrink-0" style={{ color: '#1d1d1f' }}>1회</span>
+                        </div>
+                      )}
+                      {schedule.performance && (
+                        <div className="flex justify-between items-center py-2" style={{ borderBottom: '1px solid #f0f0f0' }}>
+                          <span style={{ color: '#7a7a7a' }}>성능점검</span>
+                          <span className="font-medium ml-4 shrink-0" style={{ color: '#1d1d1f' }}>1회</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between items-center py-2 font-semibold" style={{ borderBottom: '1px solid #f0f0f0', color: '#0d9488' }}>
+                        <span>공급가</span>
+                        <span className="ml-4 shrink-0">{fmt(supplyPrice)}</span>
+                      </div>
+                      {[
+                        { label: `할인 (${selected.discountRate ?? 0}%)`, value: discountAmount > 0 ? `-${fmt(discountAmount)}` : fmt(0), isDiscount: true },
+                        { label: '최종제안가', value: fmt(subtotal), isSubtotal: true },
+                        { label: '부가가치세 (10%)', value: fmt(vat) },
+                      ].map(({ label, value, isDiscount, isSubtotal }) => (
+                        <div
+                          key={label}
+                          className={`flex justify-between items-center py-2 ${isSubtotal ? 'font-semibold' : ''}`}
+                          style={{ borderBottom: '1px solid #f0f0f0' }}
+                        >
+                          <span style={{ color: isDiscount ? '#ff3b30' : isSubtotal ? '#7c3aed' : '#7a7a7a' }}>{label}</span>
                           <span
                             className={isSubtotal ? 'ml-4 shrink-0' : 'font-medium ml-4 shrink-0'}
                             style={{ color: isDiscount ? '#ff3b30' : isSubtotal ? '#7c3aed' : '#1d1d1f' }}
@@ -497,7 +744,7 @@ export default function BuildingManagement() {
                         </div>
                       ))}
                       <div className="flex justify-between py-2.5 font-bold" style={{ color: '#0066cc' }}>
-                        <span>총 대가(1회 점검 비용)</span>
+                        <span>합계</span>
                         <span>{selected.totalCost.toLocaleString()}원</span>
                       </div>
                     </div>
@@ -566,8 +813,11 @@ export default function BuildingManagement() {
                     {/* 견적서 수정 팝업 */}
                     {showEstimateEdit && (() => {
                       const liveDirectExpense = (Number(estimateForm.travel) || 0) + (Number(estimateForm.vehicle) || 0) + (Number(estimateForm.fieldExpense) || 0)
+                      const liveCount = countCheckedInspections({
+                        maintenanceH1: estimateForm.maintenanceH1, maintenanceH2: estimateForm.maintenanceH2, performance: estimateForm.performance,
+                      })
                       const live = calcCostBreakdown(
-                        directLaborCost, liveDirectExpense, estimateForm.overheadRate, estimateForm.techFeeRate, estimateForm.discountRate
+                        directLaborCost, liveDirectExpense, estimateForm.overheadRate, estimateForm.techFeeRate, estimateForm.discountRate, liveCount
                       )
                       return (
                       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -611,6 +861,51 @@ export default function BuildingManagement() {
                                   placeholder="직접 입력"
                                 />
                               </div>
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">점검 항목</label>
+                              <div className="flex items-center gap-4 flex-wrap">
+                                <label className="flex items-center gap-1.5 text-sm text-gray-700">
+                                  <input
+                                    type="checkbox"
+                                    checked={estimateForm.maintenanceH1 || estimateForm.maintenanceH2}
+                                    onChange={e => {
+                                      const checked = e.target.checked
+                                      setEstimateForm(f => ({ ...f, maintenanceH1: checked, maintenanceH2: checked }))
+                                    }}
+                                  />
+                                  유지관리점검
+                                </label>
+                                {(estimateForm.maintenanceH1 || estimateForm.maintenanceH2) && (
+                                  <div className="flex items-center gap-3 ml-1">
+                                    <label className="flex items-center gap-1.5 text-sm text-gray-600">
+                                      <input
+                                        type="checkbox"
+                                        checked={estimateForm.maintenanceH1}
+                                        onChange={e => setEstimateForm(f => ({ ...f, maintenanceH1: e.target.checked }))}
+                                      />
+                                      상반기
+                                    </label>
+                                    <label className="flex items-center gap-1.5 text-sm text-gray-600">
+                                      <input
+                                        type="checkbox"
+                                        checked={estimateForm.maintenanceH2}
+                                        onChange={e => setEstimateForm(f => ({ ...f, maintenanceH2: e.target.checked }))}
+                                      />
+                                      하반기
+                                    </label>
+                                  </div>
+                                )}
+                              </div>
+                              <label className="flex items-center gap-1.5 text-sm text-gray-700 mt-2">
+                                <input
+                                  type="checkbox"
+                                  checked={estimateForm.performance}
+                                  onChange={e => setEstimateForm(f => ({ ...f, performance: e.target.checked }))}
+                                />
+                                성능점검
+                              </label>
                             </div>
 
                             <div>
@@ -676,6 +971,28 @@ export default function BuildingManagement() {
                                 <span style={{ color: '#7a7a7a' }}>기술료 ({estimateForm.techFeeRate}%)</span>
                                 <span className="font-medium" style={{ color: '#1d1d1f' }}>{fmt(live.techFee)}</span>
                               </div>
+                              {estimateForm.maintenanceH1 && (
+                                <div className="flex justify-between">
+                                  <span style={{ color: '#7a7a7a' }}>유지관리점검(상반기)</span>
+                                  <span className="font-medium" style={{ color: '#1d1d1f' }}>1회</span>
+                                </div>
+                              )}
+                              {estimateForm.maintenanceH2 && (
+                                <div className="flex justify-between">
+                                  <span style={{ color: '#7a7a7a' }}>유지관리점검(하반기)</span>
+                                  <span className="font-medium" style={{ color: '#1d1d1f' }}>1회</span>
+                                </div>
+                              )}
+                              {estimateForm.performance && (
+                                <div className="flex justify-between">
+                                  <span style={{ color: '#7a7a7a' }}>성능점검</span>
+                                  <span className="font-medium" style={{ color: '#1d1d1f' }}>1회</span>
+                                </div>
+                              )}
+                              <div className="flex justify-between pt-2 mt-1" style={{ borderTop: '1px solid #e5e5ea' }}>
+                                <span className="font-semibold" style={{ color: '#0d9488' }}>공급가</span>
+                                <span className="font-semibold" style={{ color: '#0d9488' }}>{fmt(live.supplyPrice)}</span>
+                              </div>
                               <div className="flex justify-between">
                                 <span style={{ color: '#ff3b30' }}>할인 ({estimateForm.discountRate}%)</span>
                                 <span className="font-medium" style={{ color: '#ff3b30' }}>
@@ -683,7 +1000,7 @@ export default function BuildingManagement() {
                                 </span>
                               </div>
                               <div className="flex justify-between pt-2 mt-1" style={{ borderTop: '1px solid #e5e5ea' }}>
-                                <span className="font-semibold" style={{ color: '#7c3aed' }}>소계</span>
+                                <span className="font-semibold" style={{ color: '#7c3aed' }}>최종제안가</span>
                                 <span className="font-semibold" style={{ color: '#7c3aed' }}>{fmt(live.subtotal)}</span>
                               </div>
                               <div className="flex justify-between">
@@ -691,7 +1008,7 @@ export default function BuildingManagement() {
                                 <span className="font-medium" style={{ color: '#1d1d1f' }}>{fmt(live.vat)}</span>
                               </div>
                               <div className="flex justify-between pt-2 mt-1" style={{ borderTop: '1px solid #e5e5ea' }}>
-                                <span className="font-bold" style={{ color: '#1d1d1f' }}>총 대가(1회 점검 비용)</span>
+                                <span className="font-bold" style={{ color: '#1d1d1f' }}>합계</span>
                                 <span className="font-bold text-base" style={{ color: '#0066cc' }}>{fmt(live.totalCost)}</span>
                               </div>
                             </div>

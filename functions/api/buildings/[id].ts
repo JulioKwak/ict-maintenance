@@ -6,6 +6,7 @@ type Row = Record<string, string | number | null>
 function rowToBuilding(r: Row) {
   return {
     id: r.id,
+    companyName: r.company_name ?? '',
     name: r.name,
     address: r.address,
     floorArea: r.floor_area,
@@ -22,6 +23,11 @@ function rowToBuilding(r: Row) {
     overheadRate: r.overhead_rate,
     techFeeRate: r.tech_fee_rate,
     discountRate: r.discount_rate ?? 0,
+    inspectionSchedule: {
+      maintenanceH1: !!(r.maintenance_h1 ?? 1),
+      maintenanceH2: !!(r.maintenance_h2 ?? 1),
+      performance: !!(r.performance_check ?? 1),
+    },
     totalCost: r.total_cost,
     status: r.status,
     createdAt: r.created_at,
@@ -45,15 +51,19 @@ export const onRequestPut: PagesFunction<Env, string, Data> = async ({ request, 
 
   const directCost = (b.directCost as Record<string, number>) ?? {}
   const prevEquipment = JSON.parse((row.equipment_json as string) || '[]')
+  const schedule = b.inspectionSchedule as Record<string, boolean> | undefined
 
   await env.DB.prepare(`
     UPDATE buildings SET
-      name=?, address=?, floor_area=?, technician_grade=?, wage_rate=?, adjustment_factor=?,
+      company_name=?, name=?, address=?, floor_area=?, technician_grade=?, wage_rate=?, adjustment_factor=?,
       assigned_technician_id=?, equipment_json=?,
       direct_cost_travel=?, direct_cost_vehicle=?, direct_cost_field_expense=?,
-      overhead_rate=?, tech_fee_rate=?, discount_rate=?, total_cost=?, status=?, updated_at=?
+      overhead_rate=?, tech_fee_rate=?, discount_rate=?,
+      maintenance_h1=?, maintenance_h2=?, performance_check=?,
+      total_cost=?, status=?, updated_at=?
     WHERE id=?
   `).bind(
+    b.companyName ?? row.company_name ?? '',
     b.name ?? row.name, b.address ?? row.address, b.floorArea ?? row.floor_area,
     b.technicianGrade ?? row.technician_grade, b.wageRate ?? row.wage_rate,
     b.adjustmentFactor ?? row.adjustment_factor,
@@ -64,6 +74,9 @@ export const onRequestPut: PagesFunction<Env, string, Data> = async ({ request, 
     directCost.fieldExpense ?? row.direct_cost_field_expense,
     b.overheadRate ?? row.overhead_rate, b.techFeeRate ?? row.tech_fee_rate,
     b.discountRate ?? row.discount_rate ?? 0,
+    schedule ? (schedule.maintenanceH1 ? 1 : 0) : (row.maintenance_h1 ?? 1),
+    schedule ? (schedule.maintenanceH2 ? 1 : 0) : (row.maintenance_h2 ?? 1),
+    schedule ? (schedule.performance ? 1 : 0) : (row.performance_check ?? 1),
     b.totalCost ?? row.total_cost, b.status ?? row.status,
     now, id
   ).run()

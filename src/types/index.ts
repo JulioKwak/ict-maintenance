@@ -70,9 +70,17 @@ export interface BuildingEquipment {
   checked: boolean
 }
 
+// 연간 청구되는 점검 항목 구성 (대가산정 시 횟수 산출에 사용)
+export interface InspectionSchedule {
+  maintenanceH1: boolean  // 유지관리점검 상반기
+  maintenanceH2: boolean  // 유지관리점검 하반기
+  performance: boolean    // 성능점검
+}
+
 // 건축물
 export interface Building {
   id: string
+  companyName: string
   name: string
   address: string
   floorArea: number
@@ -89,6 +97,7 @@ export interface Building {
   overheadRate: number
   techFeeRate: number
   discountRate: number
+  inspectionSchedule: InspectionSchedule
   totalCost: number
   status: BuildingStatus
   createdAt: string
@@ -168,6 +177,7 @@ export interface CostCalculation {
   directExpense: number
   overheadCost: number
   techFee: number
+  supplyPrice: number
   discountAmount: number
   subtotal: number
   vat: number

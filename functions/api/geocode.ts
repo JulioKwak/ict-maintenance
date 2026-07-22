@@ -48,10 +48,8 @@ export const onRequestGet: PagesFunction<Env, string, Data> = async ({ request, 
   // 오인해 강제 로그아웃시키므로, 업스트림 실패는 항상 502로 통일하고 실제 원인은 본문에만 담는다.
   if (!naverRes.ok) {
     const rawBody = await naverRes.text()
-    // 임시 진단 정보 — 실제 키 값은 노출하지 않고 길이/공백 여부만 확인(원인 파악 후 제거 예정)
-    const debug = `[debug] idLen=${env.NAVER_CLIENT_ID.length}(trim ${clientId.length}) secretLen=${env.NAVER_CLIENT_SECRET.length}(trim ${clientSecret.length})`
     return Response.json(
-      { error: `네이버 지도 API 호출에 실패했습니다. (HTTP ${naverRes.status}) ${rawBody.slice(0, 300)} ${debug}` },
+      { error: `네이버 지도 API 호출에 실패했습니다. (HTTP ${naverRes.status}) ${rawBody.slice(0, 300)}` },
       { status: 502 }
     )
   }

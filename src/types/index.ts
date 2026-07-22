@@ -88,6 +88,7 @@ export interface Building {
   }
   overheadRate: number
   techFeeRate: number
+  discountRate: number
   totalCost: number
   status: BuildingStatus
   createdAt: string
@@ -167,6 +168,8 @@ export interface CostCalculation {
   directExpense: number
   overheadCost: number
   techFee: number
+  discountAmount: number
+  subtotal: number
   vat: number
   totalCost: number
 }

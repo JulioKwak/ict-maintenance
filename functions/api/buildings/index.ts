@@ -25,6 +25,7 @@ function rowToBuilding(r: Row) {
     },
     overheadRate: r.overhead_rate,
     techFeeRate: r.tech_fee_rate,
+    discountRate: r.discount_rate ?? 0,
     totalCost: r.total_cost,
     status: r.status,
     createdAt: r.created_at,
@@ -52,15 +53,15 @@ export const onRequestPost: PagesFunction<Env, string, Data> = async ({ request,
       id, name, address, floor_area, technician_grade, wage_rate, adjustment_factor,
       assigned_technician_id, equipment_json,
       direct_cost_travel, direct_cost_vehicle, direct_cost_field_expense,
-      overhead_rate, tech_fee_rate, total_cost, status, created_at, updated_at
-    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+      overhead_rate, tech_fee_rate, discount_rate, total_cost, status, created_at, updated_at
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
   `).bind(
     id,
     b.name, b.address, b.floorArea, b.technicianGrade, b.wageRate, b.adjustmentFactor,
     (b.assignedTechnicianId as string) || null,
     JSON.stringify(b.equipment ?? []),
     directCost.travel ?? 0, directCost.vehicle ?? 0, directCost.fieldExpense ?? 0,
-    b.overheadRate ?? 110, b.techFeeRate ?? 20, b.totalCost ?? 0,
+    b.overheadRate ?? 110, b.techFeeRate ?? 20, b.discountRate ?? 0, b.totalCost ?? 0,
     b.status ?? '등록', now, now
   ).run()
 

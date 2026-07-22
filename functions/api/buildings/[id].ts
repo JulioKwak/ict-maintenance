@@ -21,6 +21,7 @@ function rowToBuilding(r: Row) {
     },
     overheadRate: r.overhead_rate,
     techFeeRate: r.tech_fee_rate,
+    discountRate: r.discount_rate ?? 0,
     totalCost: r.total_cost,
     status: r.status,
     createdAt: r.created_at,
@@ -50,7 +51,7 @@ export const onRequestPut: PagesFunction<Env, string, Data> = async ({ request, 
       name=?, address=?, floor_area=?, technician_grade=?, wage_rate=?, adjustment_factor=?,
       assigned_technician_id=?, equipment_json=?,
       direct_cost_travel=?, direct_cost_vehicle=?, direct_cost_field_expense=?,
-      overhead_rate=?, tech_fee_rate=?, total_cost=?, status=?, updated_at=?
+      overhead_rate=?, tech_fee_rate=?, discount_rate=?, total_cost=?, status=?, updated_at=?
     WHERE id=?
   `).bind(
     b.name ?? row.name, b.address ?? row.address, b.floorArea ?? row.floor_area,
@@ -62,6 +63,7 @@ export const onRequestPut: PagesFunction<Env, string, Data> = async ({ request, 
     directCost.vehicle ?? row.direct_cost_vehicle,
     directCost.fieldExpense ?? row.direct_cost_field_expense,
     b.overheadRate ?? row.overhead_rate, b.techFeeRate ?? row.tech_fee_rate,
+    b.discountRate ?? row.discount_rate ?? 0,
     b.totalCost ?? row.total_cost, b.status ?? row.status,
     now, id
   ).run()

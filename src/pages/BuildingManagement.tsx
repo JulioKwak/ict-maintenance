@@ -2,7 +2,8 @@ import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Building2, Search, ChevronRight, Trash2, Download, ClipboardCheck, Plus, FileText, X, ClipboardList, Pencil } from 'lucide-react'
 import { buildingsApi, inspectionsApi, techniciansApi } from '../utils/api'
-import { EQUIPMENT_LIST, CATEGORY_COLORS, calcDirectLaborCost } from '../data/equipment'
+import { EQUIPMENT_LIST, CATEGORY_COLORS, calcDirectLaborCost, calcCostBreakdown } from '../data/equipment'
+import { onlyDigits, toMoneyDisplay } from '../utils/money'
 import type { Building, BuildingStatus, Equipment, EquipmentCategory, InspectionForm, InspectionType, Technician } from '../types'
 import PasswordConfirmModal from '../components/PasswordConfirmModal'
 import EquipmentSelector from '../components/EquipmentSelector'
@@ -46,6 +47,13 @@ export default function BuildingManagement() {
 
   // 직접인건비 상세 팝업
   const [showLaborPopup, setShowLaborPopup] = useState(false)
+
+  // 견적서 수정 팝업
+  const [showEstimateEdit, setShowEstimateEdit] = useState(false)
+  const [estimateForm, setEstimateForm] = useState({
+    travel: '', vehicle: '', fieldExpense: '', overheadRate: 110, techFeeRate: 20, discountRate: 0,
+  })
+  const [savingEstimate, setSavingEstimate] = useState(false)
 
   // 등록 설비 수정
   const [editingEquipment, setEditingEquipment] = useState(false)
@@ -112,10 +120,7 @@ export default function BuildingManagement() {
 
     const directLaborCost = calcDirectLaborCost(eqItems, building.adjustmentFactor, building.wageRate)
     const directExpense = building.directCost.travel + building.directCost.vehicle + building.directCost.fieldExpense
-    const overheadCost = Math.round(directLaborCost * building.overheadRate / 100)
-    const techFee = Math.round((directLaborCost + overheadCost) * building.techFeeRate / 100)
-    const vat = Math.round((directLaborCost + directExpense + overheadCost + techFee) * 0.1)
-    const totalCost = Math.round(directLaborCost + directExpense + overheadCost + techFee + vat)
+    const { totalCost } = calcCostBreakdown(directLaborCost, directExpense, building.overheadRate, building.techFeeRate, building.discountRate ?? 0)
 
     setSavingEquipment(true)
     try {
@@ -126,6 +131,53 @@ export default function BuildingManagement() {
       alert(err instanceof Error ? err.message : '설비 수정 중 오류가 발생했습니다.')
     } finally {
       setSavingEquipment(false)
+    }
+  }
+
+  const openEstimateEdit = (building: Building) => {
+    setEstimateForm({
+      travel: String(building.directCost.travel || ''),
+      vehicle: String(building.directCost.vehicle || ''),
+      fieldExpense: String(building.directCost.fieldExpense || ''),
+      overheadRate: building.overheadRate,
+      techFeeRate: building.techFeeRate,
+      discountRate: building.discountRate ?? 0,
+    })
+    setShowEstimateEdit(true)
+  }
+
+  const handleSaveEstimate = async (building: Building) => {
+    const eqItems = building.equipment.filter(e => e.checked).map(be => ({
+      equipment: EQUIPMENT_LIST.find(eq => eq.id === be.equipmentId),
+      quantity: be.quantity,
+    })).filter((x): x is { equipment: Equipment; quantity: number } => !!x.equipment)
+
+    const directLaborCost = calcDirectLaborCost(eqItems, building.adjustmentFactor, building.wageRate)
+    const directCost = {
+      travel: Number(estimateForm.travel) || 0,
+      vehicle: Number(estimateForm.vehicle) || 0,
+      fieldExpense: Number(estimateForm.fieldExpense) || 0,
+    }
+    const directExpense = directCost.travel + directCost.vehicle + directCost.fieldExpense
+    const { totalCost } = calcCostBreakdown(
+      directLaborCost, directExpense, estimateForm.overheadRate, estimateForm.techFeeRate, estimateForm.discountRate
+    )
+
+    setSavingEstimate(true)
+    try {
+      const updated = await buildingsApi.update(building.id, {
+        directCost,
+        overheadRate: estimateForm.overheadRate,
+        techFeeRate: estimateForm.techFeeRate,
+        discountRate: estimateForm.discountRate,
+        totalCost,
+      })
+      setBuildings(prev => prev.map(b => (b.id === building.id ? updated : b)))
+      setShowEstimateEdit(false)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '견적서 수정 중 오류가 발생했습니다.')
+    } finally {
+      setSavingEstimate(false)
     }
   }
 
@@ -388,19 +440,36 @@ export default function BuildingManagement() {
                 })).filter(x => x.equipment)
                 const directLaborCost = Math.round(calcDirectLaborCost(eqItems, selected.adjustmentFactor, selected.wageRate))
                 const directExpense = selected.directCost.travel + selected.directCost.vehicle + selected.directCost.fieldExpense
-                const overheadCost = Math.round(directLaborCost * selected.overheadRate / 100)
-                const techFee = Math.round((directLaborCost + overheadCost) * selected.techFeeRate / 100)
-                const vat = Math.round((directLaborCost + directExpense + overheadCost + techFee) * 0.1)
+                const { overheadCost, techFee, discountAmount, subtotal, vat } = calcCostBreakdown(
+                  directLaborCost, directExpense, selected.overheadRate, selected.techFeeRate, selected.discountRate ?? 0
+                )
+                const totalPersonnel = eqItems.reduce((sum, { equipment, quantity }) => {
+                  const personnel = equipment.applyAdjustment
+                    ? quantity * equipment.standardPersonnel * selected.adjustmentFactor
+                    : quantity * equipment.standardPersonnel
+                  return sum + personnel
+                }, 0)
                 const fmt = (n: number) => Math.round(n).toLocaleString('ko-KR') + '원'
                 return (
                   <div className="card">
-                    <h3 className="font-semibold mb-3" style={{ color: '#1d1d1f' }}>대가산정 요약</h3>
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="font-semibold" style={{ color: '#1d1d1f' }}>대가산정 요약</h3>
+                      <button
+                        onClick={() => openEstimateEdit(selected)}
+                        className="flex items-center gap-1 text-sm font-medium"
+                        style={{ color: '#0066cc' }}
+                      >
+                        <Pencil size={14} />견적서 수정
+                      </button>
+                    </div>
                     <div className="text-sm space-y-0">
                       {[
                         { label: '직접인건비', value: fmt(directLaborCost), clickable: true },
                         { label: `직접경비 (여비 + 차량운행비 + 현장소요경비)`, value: fmt(directExpense) },
                         { label: `제경비 (${selected.overheadRate}%)`, value: fmt(overheadCost) },
                         { label: `기술료 (${selected.techFeeRate}%)`, value: fmt(techFee) },
+                        { label: `할인 (${selected.discountRate ?? 0}%)`, value: discountAmount > 0 ? `-${fmt(discountAmount)}` : fmt(0) },
+                        { label: '소계', value: fmt(subtotal) },
                         { label: '부가가치세 (10%)', value: fmt(vat) },
                       ].map(({ label, value, clickable }) => (
                         <div key={label} className="flex justify-between items-center py-2" style={{ borderBottom: '1px solid #f0f0f0' }}>
@@ -419,7 +488,7 @@ export default function BuildingManagement() {
                         </div>
                       ))}
                       <div className="flex justify-between py-2.5 font-bold" style={{ color: '#0066cc' }}>
-                        <span>총 대가</span>
+                        <span>총 대가(1회 점검 비용)</span>
                         <span>{selected.totalCost.toLocaleString()}원</span>
                       </div>
                     </div>
@@ -475,10 +544,116 @@ export default function BuildingManagement() {
                             })}
                           </div>
                           <div className="p-4 shrink-0" style={{ borderTop: '1px solid #f0f0f0' }}>
-                            <div className="flex justify-between font-bold px-1" style={{ color: '#0066cc' }}>
-                              <span>직접인건비 합계</span>
-                              <span>{fmt(directLaborCost)}</span>
+                            <div className="flex justify-between items-center px-1">
+                              <span className="text-sm" style={{ color: '#7a7a7a' }}>기준인원 합계 {totalPersonnel.toFixed(2)}인</span>
+                              <span className="font-bold" style={{ color: '#0066cc' }}>직접인건비 합계 {fmt(directLaborCost)}</span>
                             </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 견적서 수정 팝업 */}
+                    {showEstimateEdit && (
+                      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                        <div className="bg-white w-full max-w-md max-h-[85vh] flex flex-col" style={{ borderRadius: '18px', border: '1px solid #e0e0e0' }}>
+                          <div className="flex items-center justify-between p-5 shrink-0" style={{ borderBottom: '1px solid #f0f0f0' }}>
+                            <h3 className="font-semibold" style={{ color: '#1d1d1f', fontSize: '15px' }}>견적서 수정</h3>
+                            <button onClick={() => setShowEstimateEdit(false)} style={{ color: '#7a7a7a' }}><X size={20} /></button>
+                          </div>
+                          <div className="overflow-y-auto p-5 space-y-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                              <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">여비 (원)</label>
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  value={toMoneyDisplay(estimateForm.travel)}
+                                  onChange={e => setEstimateForm(f => ({ ...f, travel: onlyDigits(e.target.value) }))}
+                                  className="input-field text-sm"
+                                  placeholder="직접 입력"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">차량운행비 (원)</label>
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  value={toMoneyDisplay(estimateForm.vehicle)}
+                                  onChange={e => setEstimateForm(f => ({ ...f, vehicle: onlyDigits(e.target.value) }))}
+                                  className="input-field text-sm"
+                                  placeholder="직접 입력"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">현장소요경비 (원)</label>
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  value={toMoneyDisplay(estimateForm.fieldExpense)}
+                                  onChange={e => setEstimateForm(f => ({ ...f, fieldExpense: onlyDigits(e.target.value) }))}
+                                  className="input-field text-sm"
+                                  placeholder="직접 입력"
+                                />
+                              </div>
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                제경비율 ({estimateForm.overheadRate}%)
+                              </label>
+                              <input
+                                type="range"
+                                min={110}
+                                max={120}
+                                step={1}
+                                value={estimateForm.overheadRate}
+                                onChange={e => setEstimateForm(f => ({ ...f, overheadRate: Number(e.target.value) }))}
+                                className="w-full"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                기술료율 ({estimateForm.techFeeRate}%)
+                              </label>
+                              <input
+                                type="range"
+                                min={20}
+                                max={40}
+                                step={1}
+                                value={estimateForm.techFeeRate}
+                                onChange={e => setEstimateForm(f => ({ ...f, techFeeRate: Number(e.target.value) }))}
+                                className="w-full"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">할인율 (%)</label>
+                              <input
+                                type="number"
+                                min={0}
+                                max={100}
+                                step={1}
+                                value={estimateForm.discountRate}
+                                onChange={e => {
+                                  const n = Math.min(100, Math.max(0, Number(e.target.value) || 0))
+                                  setEstimateForm(f => ({ ...f, discountRate: n }))
+                                }}
+                                className="input-field text-sm"
+                                placeholder="0~100 사이 입력"
+                              />
+                            </div>
+                          </div>
+                          <div className="flex gap-3 p-5 shrink-0" style={{ borderTop: '1px solid #f0f0f0' }}>
+                            <button
+                              onClick={() => handleSaveEstimate(selected)}
+                              className="btn-primary flex-1 disabled:opacity-60"
+                              disabled={savingEstimate}
+                            >
+                              {savingEstimate ? '저장 중...' : '저장'}
+                            </button>
+                            <button onClick={() => setShowEstimateEdit(false)} className="btn-secondary flex-1">취소</button>
                           </div>
                         </div>
                       </div>

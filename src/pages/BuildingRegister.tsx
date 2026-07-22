@@ -6,10 +6,12 @@ import {
   getTechnicianGrade,
   getAdjustmentFactor,
   calcDirectLaborCost,
+  calcCostBreakdown,
   meetsGradeRequirement,
   resolveWageRates,
 } from '../data/equipment'
 import { buildingsApi, techniciansApi, wageRatesApi } from '../utils/api'
+import { onlyDigits, toMoneyDisplay } from '../utils/money'
 import type { Building, Technician, TechnicianGrade, WageRateSet } from '../types'
 import EquipmentSelector from '../components/EquipmentSelector'
 import AddressSearchModal from '../components/AddressSearchModal'
@@ -76,16 +78,9 @@ export default function BuildingRegister() {
   )
 
   const directExpense = (parseFloat(travel) || 0) + (parseFloat(vehicle) || 0) + (parseFloat(fieldExpense) || 0)
-  const overheadCost = Math.round(directLaborCost * overheadRate / 100)
-  const techFee = Math.round((directLaborCost + overheadCost) * techFeeRate / 100)
-  const vat = Math.round((directLaborCost + directExpense + overheadCost + techFee) * 0.1)
-  const totalCost = Math.round(directLaborCost + directExpense + overheadCost + techFee + vat)
+  const { overheadCost, techFee, vat, totalCost } = calcCostBreakdown(directLaborCost, directExpense, overheadRate, techFeeRate, 0)
 
   const fmt = (n: number) => Math.round(n).toLocaleString('ko-KR') + '원'
-
-  // 직접경비 입력값(숫자만 저장) ↔ 화면 표시(천단위 쉼표) 변환
-  const onlyDigits = (v: string) => v.replace(/[^\d]/g, '')
-  const toMoneyDisplay = (v: string) => (v ? Number(v).toLocaleString('ko-KR') : '')
 
   const handleFloorAreaChange = useCallback((val: string) => {
     setFloorArea(val)
@@ -130,6 +125,7 @@ export default function BuildingRegister() {
       },
       overheadRate,
       techFeeRate,
+      discountRate: 0,
       totalCost,
       status: '등록',
     }

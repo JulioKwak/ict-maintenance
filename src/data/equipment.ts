@@ -1,4 +1,4 @@
-import type { Equipment, EquipmentCategory, TechnicianGrade, WageRateSet } from '../types'
+import type { Equipment, EquipmentCategory, TechnicianGrade, WageRateSet, CostCalculation } from '../types'
 
 // 설비 카테고리별 색상 (AI 생성 메뉴의 설비 카테고리 선택 색상과 통일)
 export const CATEGORY_COLORS: Record<EquipmentCategory, { bg: string; text: string; border: string }> = {
@@ -105,4 +105,22 @@ export function calcDirectLaborCost(
       return sum + quantity * equipment.standardPersonnel * wageRate
     }
   }, 0)
+}
+
+// 대가산정 전체 내역 계산 (제경비 → 기술료 → 소계 → 할인 → 부가가치세 → 총 대가)
+export function calcCostBreakdown(
+  directLaborCost: number,
+  directExpense: number,
+  overheadRate: number,
+  techFeeRate: number,
+  discountRate: number
+): CostCalculation {
+  const overheadCost = Math.round(directLaborCost * overheadRate / 100)
+  const techFee = Math.round((directLaborCost + overheadCost) * techFeeRate / 100)
+  const rawSubtotal = directLaborCost + directExpense + overheadCost + techFee
+  const discountAmount = Math.round(rawSubtotal * discountRate / 100)
+  const subtotal = rawSubtotal - discountAmount
+  const vat = Math.round(subtotal * 0.1)
+  const totalCost = Math.round(subtotal + vat)
+  return { directLaborCost, directExpense, overheadCost, techFee, discountAmount, subtotal, vat, totalCost }
 }

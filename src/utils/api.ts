@@ -159,6 +159,22 @@ export const companyApi = {
     request<CompanyInfo>('/company', { method: 'PUT', body: JSON.stringify(data) }),
 }
 
+// ─── Geocoding (네이버 지도 주소 검색) ──────────────────────────────────────────
+
+export interface NaverAddress {
+  roadAddress: string
+  jibunAddress: string
+  englishAddress: string
+  x: string
+  y: string
+}
+
+export const geocodeApi = {
+  search: (query: string) =>
+    request<{ addresses: NaverAddress[] }>(`/geocode?query=${encodeURIComponent(query)}`)
+      .then(res => res.addresses),
+}
+
 // ─── Inspections ──────────────────────────────────────────────────────────────
 
 export const inspectionsApi = {

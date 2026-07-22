@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { AlertCircle } from 'lucide-react'
+import { AlertCircle, Search } from 'lucide-react'
 import {
   EQUIPMENT_LIST,
   getTechnicianGrade,
@@ -12,6 +12,7 @@ import {
 import { buildingsApi, techniciansApi, wageRatesApi } from '../utils/api'
 import type { Building, Technician, TechnicianGrade, WageRateSet } from '../types'
 import EquipmentSelector from '../components/EquipmentSelector'
+import AddressSearchModal from '../components/AddressSearchModal'
 
 export default function BuildingRegister() {
   const navigate = useNavigate()
@@ -26,6 +27,7 @@ export default function BuildingRegister() {
 
   const [name, setName] = useState('')
   const [address, setAddress] = useState('')
+  const [showAddressSearch, setShowAddressSearch] = useState(false)
   const [floorArea, setFloorArea] = useState('')
   const [floorAreaError, setFloorAreaError] = useState('')
   const [assignedTechnicianId, setAssignedTechnicianId] = useState('')
@@ -144,6 +146,7 @@ export default function BuildingRegister() {
   }
 
   return (
+    <>
     <form onSubmit={handleSubmit} className="max-w-4xl space-y-6">
       {/* 기본정보 */}
       <div className="card">
@@ -162,14 +165,23 @@ export default function BuildingRegister() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">주소 <span className="text-red-500">*</span></label>
-            <input
-              type="text"
-              value={address}
-              onChange={e => setAddress(e.target.value)}
-              className="input-field"
-              placeholder="건축물 주소를 입력하세요"
-              required
-            />
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={address}
+                onChange={e => setAddress(e.target.value)}
+                className="input-field"
+                placeholder="건축물 주소를 입력하세요"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowAddressSearch(true)}
+                className="btn-secondary text-sm px-3 shrink-0 flex items-center gap-1"
+              >
+                <Search size={14} />주소 검색
+              </button>
+            </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -347,6 +359,13 @@ export default function BuildingRegister() {
         <button type="button" onClick={() => navigate('/buildings')} className="btn-secondary px-8">취소</button>
       </div>
     </form>
+
+    <AddressSearchModal
+      isOpen={showAddressSearch}
+      onClose={() => setShowAddressSearch(false)}
+      onSelect={setAddress}
+    />
+    </>
   )
 }
 

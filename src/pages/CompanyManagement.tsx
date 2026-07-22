@@ -1,8 +1,10 @@
 import { useState, useEffect, type FormEvent } from 'react'
+import { Search } from 'lucide-react'
 import { companyApi } from '../utils/api'
 import { formatPhone } from '../utils/phone'
 import { useAuth } from '../context/AuthContext'
 import { canEditSystemSettings } from '../utils/permissions'
+import AddressSearchModal from '../components/AddressSearchModal'
 import type { CompanyInfo } from '../types'
 
 const emptyForm = (): CompanyInfo => ({
@@ -14,6 +16,7 @@ export default function CompanyManagement() {
   const canEdit = canEditSystemSettings(user?.role)
   const [form, setForm] = useState<CompanyInfo>(emptyForm())
   const [saving, setSaving] = useState(false)
+  const [showAddressSearch, setShowAddressSearch] = useState(false)
 
   useEffect(() => {
     companyApi.get().then(setForm).catch(() => {})
@@ -51,14 +54,25 @@ export default function CompanyManagement() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">주소</label>
-            <input
-              type="text"
-              value={form.address}
-              onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
-              className="input-field"
-              placeholder="회사 주소를 입력하세요"
-              disabled={!canEdit}
-            />
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={form.address}
+                onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
+                className="input-field"
+                placeholder="회사 주소를 입력하세요"
+                disabled={!canEdit}
+              />
+              {canEdit && (
+                <button
+                  type="button"
+                  onClick={() => setShowAddressSearch(true)}
+                  className="btn-secondary text-sm px-3 shrink-0 flex items-center gap-1"
+                >
+                  <Search size={14} />주소 검색
+                </button>
+              )}
+            </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">연락처</label>
@@ -102,6 +116,12 @@ export default function CompanyManagement() {
           )}
         </form>
       </div>
+
+      <AddressSearchModal
+        isOpen={showAddressSearch}
+        onClose={() => setShowAddressSearch(false)}
+        onSelect={addr => setForm(f => ({ ...f, address: addr }))}
+      />
     </div>
   )
 }

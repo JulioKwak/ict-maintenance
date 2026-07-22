@@ -553,9 +553,10 @@ export default function BuildingManagement() {
                             })}
                           </div>
                           <div className="p-4 shrink-0" style={{ borderTop: '1px solid #f0f0f0' }}>
-                            <div className="flex justify-between items-center px-1">
-                              <span className="text-sm" style={{ color: '#7a7a7a' }}>기준인원 합계 {totalPersonnel.toFixed(2)}인</span>
-                              <span className="font-bold" style={{ color: '#0066cc' }}>직접인건비 합계 {fmt(directLaborCost)}</span>
+                            <div className="grid grid-cols-4 gap-2 px-3 items-center text-sm">
+                              <span className="col-span-2 font-bold" style={{ color: '#0066cc' }}>전체 설비 {eqItems.length}건</span>
+                              <span className="text-right font-bold" style={{ color: '#0066cc' }}>기준인원 {totalPersonnel.toFixed(2)}인</span>
+                              <span className="text-right font-bold" style={{ color: '#0066cc' }}>합계 {fmt(directLaborCost)}</span>
                             </div>
                           </div>
                         </div>

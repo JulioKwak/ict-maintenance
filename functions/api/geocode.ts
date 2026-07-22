@@ -39,12 +39,22 @@ export const onRequestGet: PagesFunction<Env, string, Data> = async ({ request, 
     }
   )
 
+  // 네이버 쪽 응답 상태(401/403 등)를 그대로 돌려주면 프론트엔드가 "우리 서비스 로그인 세션 만료"로
+  // 오인해 강제 로그아웃시키므로, 업스트림 실패는 항상 502로 통일하고 실제 원인은 본문에만 담는다.
+  if (!naverRes.ok) {
+    const rawBody = await naverRes.text()
+    return Response.json(
+      { error: `네이버 지도 API 호출에 실패했습니다. (HTTP ${naverRes.status}) ${rawBody.slice(0, 300)}` },
+      { status: 502 }
+    )
+  }
+
   const data = await naverRes.json<NaverGeocodeResponse>()
 
-  if (!naverRes.ok || data.status !== 'OK') {
+  if (data.status !== 'OK') {
     return Response.json(
-      { error: data.errorMessage || `주소 검색에 실패했습니다. (${naverRes.status})` },
-      { status: naverRes.ok ? 502 : naverRes.status }
+      { error: data.errorMessage || `주소 검색에 실패했습니다. (status: ${data.status})` },
+      { status: 502 }
     )
   }
 

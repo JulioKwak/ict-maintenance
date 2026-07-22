@@ -1,4 +1,4 @@
-import type { User, Technician, Building, InspectionForm } from '../types'
+import type { User, Technician, Building, InspectionForm, WageRateSet, CompanyInfo, TechnicianGrade } from '../types'
 
 const BASE = '/api'
 
@@ -136,6 +136,27 @@ export const buildingsApi = {
 
   delete: (id: string) =>
     request<void>(`/buildings/${id}`, { method: 'DELETE' }),
+}
+
+// ─── Wage rates ───────────────────────────────────────────────────────────────
+
+export const wageRatesApi = {
+  getAll: () => request<WageRateSet[]>('/wage-rates'),
+
+  upsert: (year: number, rates: Record<TechnicianGrade, number>) =>
+    request<WageRateSet>(`/wage-rates/${year}`, { method: 'PUT', body: JSON.stringify({ rates }) }),
+
+  delete: (year: number) =>
+    request<void>(`/wage-rates/${year}`, { method: 'DELETE' }),
+}
+
+// ─── Company ──────────────────────────────────────────────────────────────────
+
+export const companyApi = {
+  get: () => request<CompanyInfo>('/company'),
+
+  update: (data: Partial<CompanyInfo>) =>
+    request<CompanyInfo>('/company', { method: 'PUT', body: JSON.stringify(data) }),
 }
 
 // ─── Inspections ──────────────────────────────────────────────────────────────

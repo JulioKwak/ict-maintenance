@@ -3,23 +3,25 @@ import { useNavigate } from 'react-router-dom'
 import { AlertCircle } from 'lucide-react'
 import {
   EQUIPMENT_LIST,
-  WAGE_RATES,
   getTechnicianGrade,
   getAdjustmentFactor,
   calcDirectLaborCost,
   meetsGradeRequirement,
+  resolveWageRates,
 } from '../data/equipment'
-import { buildingsApi, techniciansApi } from '../utils/api'
-import type { Building, Technician, TechnicianGrade } from '../types'
+import { buildingsApi, techniciansApi, wageRatesApi } from '../utils/api'
+import type { Building, Technician, TechnicianGrade, WageRateSet } from '../types'
 import EquipmentSelector from '../components/EquipmentSelector'
 
 export default function BuildingRegister() {
   const navigate = useNavigate()
   const [technicians, setTechnicians] = useState<Technician[]>([])
+  const [wageRateSets, setWageRateSets] = useState<WageRateSet[]>([])
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     techniciansApi.getAll().then(setTechnicians).catch(() => {})
+    wageRatesApi.getAll().then(setWageRateSets).catch(() => {})
   }, [])
 
   const [name, setName] = useState('')
@@ -44,7 +46,8 @@ export default function BuildingRegister() {
   const area = parseFloat(floorArea) || 0
   const techGrade = area >= 5000 ? (getTechnicianGrade(area) as TechnicianGrade) : ''
   const adjustFactor = area >= 5000 ? getAdjustmentFactor(area) : 0
-  const wageRate = techGrade ? WAGE_RATES[techGrade] : 0
+  const currentYearRates = resolveWageRates(wageRateSets, new Date().getFullYear())
+  const wageRate = techGrade && currentYearRates ? currentYearRates[techGrade] : 0
 
   // 연면적 기준 최소 요구 등급 이상인 기술자만 선택 가능
   const eligibleTechnicians = useMemo(
@@ -226,6 +229,12 @@ export default function BuildingRegister() {
               <span className="text-gray-500">연면적 조정계수:</span>
               <span className="ml-2 font-semibold text-blue-700">{adjustFactor}</span>
             </div>
+          </div>
+        )}
+        {area >= 5000 && !currentYearRates && (
+          <div className="flex items-center gap-1.5 mt-2 text-red-600">
+            <AlertCircle size={14} />
+            <span className="text-xs">등록된 노임단가가 없습니다. 시스템 관리 &gt; 노임단가 관리에서 먼저 등록하세요.</span>
           </div>
         )}
       </div>

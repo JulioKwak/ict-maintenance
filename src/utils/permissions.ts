@@ -20,3 +20,7 @@ export function homePathForRole(role: UserRole | undefined): string {
 export function canDelete(role: UserRole | undefined): boolean {
   return role === 'admin'
 }
+
+export function canEditSystemSettings(role: UserRole | undefined): boolean {
+  return role === 'admin'
+}

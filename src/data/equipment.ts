@@ -1,4 +1,4 @@
-import type { Equipment, EquipmentCategory } from '../types'
+import type { Equipment, EquipmentCategory, TechnicianGrade, WageRateSet } from '../types'
 
 // 설비 카테고리별 색상 (AI 생성 메뉴의 설비 카테고리 선택 색상과 통일)
 export const CATEGORY_COLORS: Record<EquipmentCategory, { bg: string; text: string; border: string }> = {
@@ -49,12 +49,10 @@ export const EQUIPMENT_LIST: Equipment[] = [
   { id: 'etc-02', category: '기타설비', name: '통신접지설비', unit: '식', standardPersonnel: 0.12, applyAdjustment: true },
 ]
 
-// 기술자 노임단가
-export const WAGE_RATES: Record<string, number> = {
-  '특급기술자': 343079,
-  '고급기술자': 315288,
-  '중급기술자': 283343,
-  '초급기술자': 249574,
+// 연도별 노임단가 중 기준 연도 이하 가장 최근 값을 찾는다(해당 연도 단가가 아직 등록되지 않았으면 이전 연도 값을 그대로 적용).
+export function resolveWageRates(sets: WageRateSet[], year: number): Record<TechnicianGrade, number> | null {
+  const candidates = sets.filter(s => s.year <= year).sort((a, b) => b.year - a.year)
+  return candidates[0]?.rates ?? null
 }
 
 // 연면적에 따른 기술자 등급 결정

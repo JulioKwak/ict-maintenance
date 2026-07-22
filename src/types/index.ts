@@ -25,6 +25,22 @@ export interface Technician {
   createdAt: string
 }
 
+// 연도별 기술자 등급 노임단가
+export interface WageRateSet {
+  year: number
+  rates: Record<TechnicianGrade, number>
+}
+
+// 회사 정보
+export interface CompanyInfo {
+  representativeName: string
+  address: string
+  phone: string
+  email: string
+  businessNumber: string
+  updatedAt: string
+}
+
 // 설비 카테고리
 export type EquipmentCategory = '통신설비' | '방송설비' | '정보설비' | '기타설비'
 

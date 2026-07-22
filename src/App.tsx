@@ -12,6 +12,8 @@ import AIGenerate from './pages/AIGenerate'
 import TechnicianManagement from './pages/TechnicianManagement'
 import UserManagement from './pages/UserManagement'
 import MyInspections from './pages/MyInspections'
+import WageRateManagement from './pages/WageRateManagement'
+import CompanyManagement from './pages/CompanyManagement'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user } = useAuth()
@@ -38,6 +40,8 @@ function AppRoutes() {
       <Route path="/technicians" element={<ProtectedRoute><TechnicianManagement /></ProtectedRoute>} />
       <Route path="/users" element={<ProtectedRoute><UserManagement /></ProtectedRoute>} />
       <Route path="/my-inspections" element={<ProtectedRoute><MyInspections /></ProtectedRoute>} />
+      <Route path="/wage-rates" element={<ProtectedRoute><WageRateManagement /></ProtectedRoute>} />
+      <Route path="/company" element={<ProtectedRoute><CompanyManagement /></ProtectedRoute>} />
       <Route path="*" element={<Navigate to={homePathForRole(user?.role)} replace />} />
     </Routes>
   )

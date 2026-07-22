@@ -8,10 +8,14 @@ import {
   HardHat,
   Users,
   ClipboardList,
+  Settings,
+  Banknote,
+  Briefcase,
   LogOut,
   Menu,
   X,
   ChevronRight,
+  ChevronDown,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { canAccessPath } from '../utils/permissions'
@@ -25,6 +29,15 @@ const NAV_ITEMS = [
   { path: '/technicians',       label: '기술자 관리', icon: HardHat },
   { path: '/users',             label: '사용자 관리', icon: Users },
 ]
+
+const SYSTEM_GROUP = {
+  label: '시스템 관리',
+  icon: Settings,
+  children: [
+    { path: '/wage-rates', label: '노임단가 관리', icon: Banknote },
+    { path: '/company',    label: '회사 관리',     icon: Briefcase },
+  ],
+}
 
 const MOBILE_TAB_ITEMS = [
   { path: '/dashboard',         label: '대시보드', icon: LayoutDashboard },
@@ -40,6 +53,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [desktopCollapsed, setDesktopCollapsed] = useState(false)
+  const [systemOpen, setSystemOpen] = useState(
+    () => SYSTEM_GROUP.children.some(c => location.pathname === c.path || location.pathname.startsWith(c.path + '/'))
+  )
 
   const handleLogout = () => {
     logout()
@@ -54,11 +70,19 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   const visibleNavItems = NAV_ITEMS.filter(n => canAccessPath(user?.role, n.path))
   const visibleMobileTabItems = MOBILE_TAB_ITEMS.filter(n => canAccessPath(user?.role, n.path))
+  const visibleSystemChildren = SYSTEM_GROUP.children.filter(n => canAccessPath(user?.role, n.path))
 
   const isActive = (path: string) =>
     location.pathname === path || location.pathname.startsWith(path + '/')
 
-  const currentLabel = NAV_ITEMS.find(n => isActive(n.path))?.label ?? '정보통신설비 유지보수관리'
+  const currentLabel = NAV_ITEMS.find(n => isActive(n.path))?.label
+    ?? visibleSystemChildren.find(n => isActive(n.path))?.label
+    ?? '정보통신설비 유지보수관리'
+
+  const toggleSystemGroup = () => {
+    if (desktopCollapsed) { setDesktopCollapsed(false); setSystemOpen(true) }
+    else setSystemOpen(o => !o)
+  }
 
   return (
     <div className="flex h-screen bg-[#f5f5f7] overflow-hidden">
@@ -129,6 +153,48 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               </Link>
             )
           })}
+
+          {visibleSystemChildren.length > 0 && (
+            <div className="mx-1.5 my-0.5">
+              <button
+                onClick={toggleSystemGroup}
+                title={desktopCollapsed ? SYSTEM_GROUP.label : undefined}
+                className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-[8px] transition-colors"
+                style={{ color: 'rgba(255,255,255,0.55)', fontSize: '12px', letterSpacing: '-0.012px' }}
+                onMouseEnter={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.85)'; e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.06)' }}
+                onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.55)'; e.currentTarget.style.backgroundColor = 'transparent' }}
+              >
+                <SYSTEM_GROUP.icon size={16} className="shrink-0" />
+                {!desktopCollapsed && (
+                  <>
+                    <span className="flex-1 text-left leading-none">{SYSTEM_GROUP.label}</span>
+                    <ChevronDown size={12} style={{ transition: 'transform 0.15s', transform: systemOpen ? 'rotate(180deg)' : undefined }} />
+                  </>
+                )}
+              </button>
+              {systemOpen && !desktopCollapsed && visibleSystemChildren.map(({ path, label, icon: Icon }) => {
+                const active = isActive(path)
+                return (
+                  <Link
+                    key={path}
+                    to={path}
+                    className="flex items-center gap-2.5 ml-4 my-0.5 px-2.5 py-1.5 rounded-[8px] transition-colors"
+                    style={{
+                      color: active ? '#2997ff' : 'rgba(255,255,255,0.5)',
+                      backgroundColor: active ? 'rgba(255,255,255,0.1)' : 'transparent',
+                      fontSize: '11.5px',
+                    }}
+                    onMouseEnter={e => { if (!active) { e.currentTarget.style.color = 'rgba(255,255,255,0.85)'; e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.06)' } }}
+                    onMouseLeave={e => { if (!active) { e.currentTarget.style.color = 'rgba(255,255,255,0.5)'; e.currentTarget.style.backgroundColor = 'transparent' } }}
+                  >
+                    <Icon size={14} className="shrink-0" />
+                    <span className="flex-1 leading-none">{label}</span>
+                    {active && <ChevronRight size={11} style={{ color: 'rgba(41,151,255,0.7)' }} />}
+                  </Link>
+                )
+              })}
+            </div>
+          )}
         </nav>
 
         {/* 사용자 */}
@@ -212,6 +278,40 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   </Link>
                 )
               })}
+
+              {visibleSystemChildren.length > 0 && (
+                <div className="mx-2 my-0.5">
+                  <button
+                    onClick={() => setSystemOpen(o => !o)}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-[8px] transition-colors"
+                    style={{ color: 'rgba(255,255,255,0.60)', fontSize: '14px' }}
+                  >
+                    <SYSTEM_GROUP.icon size={18} className="shrink-0" />
+                    <span className="flex-1 text-left">{SYSTEM_GROUP.label}</span>
+                    <ChevronDown size={14} style={{ transition: 'transform 0.15s', transform: systemOpen ? 'rotate(180deg)' : undefined }} />
+                  </button>
+                  {systemOpen && visibleSystemChildren.map(({ path, label, icon: Icon }) => {
+                    const active = isActive(path)
+                    return (
+                      <Link
+                        key={path}
+                        to={path}
+                        onClick={() => setSidebarOpen(false)}
+                        className="flex items-center gap-3 ml-5 my-0.5 px-3 py-2 rounded-[8px] transition-colors"
+                        style={{
+                          color: active ? '#2997ff' : 'rgba(255,255,255,0.55)',
+                          backgroundColor: active ? 'rgba(255,255,255,0.1)' : 'transparent',
+                          fontSize: '13px',
+                        }}
+                      >
+                        <Icon size={16} className="shrink-0" />
+                        <span className="flex-1">{label}</span>
+                        {active && <ChevronRight size={13} style={{ color: 'rgba(41,151,255,0.7)' }} />}
+                      </Link>
+                    )
+                  })}
+                </div>
+              )}
             </nav>
 
             {/* 로그아웃 */}

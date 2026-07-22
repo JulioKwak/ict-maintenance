@@ -468,11 +468,15 @@ export default function BuildingManagement() {
                         { label: `직접경비 (여비 + 차량운행비 + 현장소요경비)`, value: fmt(directExpense) },
                         { label: `제경비 (${selected.overheadRate}%)`, value: fmt(overheadCost) },
                         { label: `기술료 (${selected.techFeeRate}%)`, value: fmt(techFee) },
-                        { label: `할인 (${selected.discountRate ?? 0}%)`, value: discountAmount > 0 ? `-${fmt(discountAmount)}` : fmt(0) },
-                        { label: '소계', value: fmt(subtotal) },
+                        { label: `할인 (${selected.discountRate ?? 0}%)`, value: discountAmount > 0 ? `-${fmt(discountAmount)}` : fmt(0), isDiscount: true },
+                        { label: '소계', value: fmt(subtotal), isSubtotal: true },
                         { label: '부가가치세 (10%)', value: fmt(vat) },
-                      ].map(({ label, value, clickable }) => (
-                        <div key={label} className="flex justify-between items-center py-2" style={{ borderBottom: '1px solid #f0f0f0' }}>
+                      ].map(({ label, value, clickable, isDiscount, isSubtotal }) => (
+                        <div
+                          key={label}
+                          className={`flex justify-between items-center py-2 ${isSubtotal ? 'font-semibold' : ''}`}
+                          style={{ borderBottom: '1px solid #f0f0f0' }}
+                        >
                           {clickable ? (
                             <button
                               onClick={() => setShowLaborPopup(true)}
@@ -482,9 +486,14 @@ export default function BuildingManagement() {
                               {label}
                             </button>
                           ) : (
-                            <span style={{ color: '#7a7a7a' }}>{label}</span>
+                            <span style={{ color: isDiscount ? '#ff3b30' : isSubtotal ? '#7c3aed' : '#7a7a7a' }}>{label}</span>
                           )}
-                          <span className="font-medium ml-4 shrink-0" style={{ color: '#1d1d1f' }}>{value}</span>
+                          <span
+                            className={isSubtotal ? 'ml-4 shrink-0' : 'font-medium ml-4 shrink-0'}
+                            style={{ color: isDiscount ? '#ff3b30' : isSubtotal ? '#7c3aed' : '#1d1d1f' }}
+                          >
+                            {value}
+                          </span>
                         </div>
                       ))}
                       <div className="flex justify-between py-2.5 font-bold" style={{ color: '#0066cc' }}>
@@ -554,7 +563,12 @@ export default function BuildingManagement() {
                     )}
 
                     {/* 견적서 수정 팝업 */}
-                    {showEstimateEdit && (
+                    {showEstimateEdit && (() => {
+                      const liveDirectExpense = (Number(estimateForm.travel) || 0) + (Number(estimateForm.vehicle) || 0) + (Number(estimateForm.fieldExpense) || 0)
+                      const live = calcCostBreakdown(
+                        directLaborCost, liveDirectExpense, estimateForm.overheadRate, estimateForm.techFeeRate, estimateForm.discountRate
+                      )
+                      return (
                       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
                         <div className="bg-white w-full max-w-md max-h-[85vh] flex flex-col" style={{ borderRadius: '18px', border: '1px solid #e0e0e0' }}>
                           <div className="flex items-center justify-between p-5 shrink-0" style={{ borderBottom: '1px solid #f0f0f0' }}>
@@ -629,20 +643,56 @@ export default function BuildingManagement() {
                             </div>
 
                             <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">할인율 (%)</label>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                할인율 ({estimateForm.discountRate}%)
+                              </label>
                               <input
-                                type="number"
+                                type="range"
                                 min={0}
                                 max={100}
                                 step={1}
                                 value={estimateForm.discountRate}
-                                onChange={e => {
-                                  const n = Math.min(100, Math.max(0, Number(e.target.value) || 0))
-                                  setEstimateForm(f => ({ ...f, discountRate: n }))
-                                }}
-                                className="input-field text-sm"
-                                placeholder="0~100 사이 입력"
+                                onChange={e => setEstimateForm(f => ({ ...f, discountRate: Number(e.target.value) }))}
+                                className="w-full"
                               />
+                            </div>
+
+                            {/* 산출 내역 미리보기 */}
+                            <div className="bg-[#f5f5f7] rounded-[11px] p-4 text-sm space-y-2">
+                              <div className="flex justify-between">
+                                <span style={{ color: '#7a7a7a' }}>직접인건비</span>
+                                <span className="font-medium" style={{ color: '#1d1d1f' }}>{fmt(live.directLaborCost)}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span style={{ color: '#7a7a7a' }}>직접경비</span>
+                                <span className="font-medium" style={{ color: '#1d1d1f' }}>{fmt(live.directExpense)}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span style={{ color: '#7a7a7a' }}>제경비 ({estimateForm.overheadRate}%)</span>
+                                <span className="font-medium" style={{ color: '#1d1d1f' }}>{fmt(live.overheadCost)}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span style={{ color: '#7a7a7a' }}>기술료 ({estimateForm.techFeeRate}%)</span>
+                                <span className="font-medium" style={{ color: '#1d1d1f' }}>{fmt(live.techFee)}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span style={{ color: '#ff3b30' }}>할인 ({estimateForm.discountRate}%)</span>
+                                <span className="font-medium" style={{ color: '#ff3b30' }}>
+                                  {live.discountAmount > 0 ? `-${fmt(live.discountAmount)}` : fmt(0)}
+                                </span>
+                              </div>
+                              <div className="flex justify-between pt-2 mt-1" style={{ borderTop: '1px solid #e5e5ea' }}>
+                                <span className="font-semibold" style={{ color: '#7c3aed' }}>소계</span>
+                                <span className="font-semibold" style={{ color: '#7c3aed' }}>{fmt(live.subtotal)}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span style={{ color: '#7a7a7a' }}>부가가치세 (10%)</span>
+                                <span className="font-medium" style={{ color: '#1d1d1f' }}>{fmt(live.vat)}</span>
+                              </div>
+                              <div className="flex justify-between pt-2 mt-1" style={{ borderTop: '1px solid #e5e5ea' }}>
+                                <span className="font-bold" style={{ color: '#1d1d1f' }}>총 대가(1회 점검 비용)</span>
+                                <span className="font-bold text-base" style={{ color: '#0066cc' }}>{fmt(live.totalCost)}</span>
+                              </div>
                             </div>
                           </div>
                           <div className="flex gap-3 p-5 shrink-0" style={{ borderTop: '1px solid #f0f0f0' }}>
@@ -657,7 +707,8 @@ export default function BuildingManagement() {
                           </div>
                         </div>
                       </div>
-                    )}
+                      )
+                    })()}
                   </div>
                 )
               })()}

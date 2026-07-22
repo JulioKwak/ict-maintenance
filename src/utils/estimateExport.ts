@@ -71,7 +71,12 @@ function fillEstimateSheet(
   ws.getCell('E5').value = `   사업자번호 : ${company.businessNumber} / 대 표 : ${company.representativeName} (인)`
   const companyAddressCell = ws.getCell('E6')
   companyAddressCell.value = `   주소 : ${company.address}`
-  companyAddressCell.alignment = { ...companyAddressCell.alignment, wrapText: false, shrinkToFit: true }
+  // 주의: cell.alignment = {...}는 내부적으로 shared style 객체를 직접 변형(mutate)해서
+  // 같은 서식을 공유하는 다른 셀에도 영향을 줄 수 있다. cell.style 전체를 새 객체로 교체해 회피한다.
+  companyAddressCell.style = {
+    ...companyAddressCell.style,
+    alignment: { ...companyAddressCell.alignment, wrapText: false, shrinkToFit: true },
+  }
   ws.getCell('E7').value = `   연락처 : ${company.phone}`
   ws.getCell('E8').value = `   e-mail : ${company.email}`
   ws.getCell('G25').value = building.discountRate / 100
@@ -151,10 +156,12 @@ function fillDetailSheet(
   for (let r = DETAIL_DATA_START_ROW; r < originalTotalRow; r += 1) safeUnmerge(ws, `B${r}:E${r}`)
   safeUnmerge(ws, `B${originalTotalRow}:F${originalTotalRow}`)
 
+  // 행이 늘어날 때는 duplicateRow로 물리적으로 행을 추가한다(정상 동작 확인됨).
+  // 반대로 줄어들 때는 exceljs의 spliceRows가 삭제 대상 행을 온전히 지우지 못하고
+  // 옛 내용을 꼬리에 남기는 버그가 있어(실측 확인), 행을 삭제하는 대신 남는 뒷부분을
+  // 아래에서 직접 비우는 방식으로 우회한다.
   if (totalCount > DETAIL_TEMPLATE_ROWS) {
     ws.duplicateRow(DETAIL_DATA_START_ROW + DETAIL_TEMPLATE_ROWS - 1, totalCount - DETAIL_TEMPLATE_ROWS, true)
-  } else if (totalCount < DETAIL_TEMPLATE_ROWS) {
-    ws.spliceRows(DETAIL_DATA_START_ROW + totalCount, DETAIL_TEMPLATE_ROWS - totalCount)
   }
 
   let row = DETAIL_DATA_START_ROW
@@ -198,6 +205,16 @@ function fillDetailSheet(
   totalG.style = totalRowStyle.G
   totalH.style = totalRowStyle.H
   safeMerge(ws, `B${totalRow}:F${totalRow}`)
+
+  // 체크된 설비가 템플릿 기본 18행보다 적을 때 남는 뒷부분(옛 데이터 행 + 옛 합계 행 자리)을 비운다.
+  // 주의: cell.fill = {...}는 shared style 객체를 직접 변형해 같은 서식을 공유하는 다른 셀
+  // (예: 헤더 행)까지 오염시킬 수 있으므로, cell.style 전체를 새 객체로 교체하는 방식으로 처리한다.
+  for (let r = totalRow + 1; r <= originalTotalRow; r += 1) {
+    const blankCells = [ws.getCell(`A${r}`), ws.getCell(`B${r}`), ws.getCell(`F${r}`), ws.getCell(`G${r}`), ws.getCell(`H${r}`)]
+    blankCells.forEach(cell => { cell.value = null })
+    const aCell = ws.getCell(`A${r}`)
+    aCell.style = { ...aCell.style, fill: { type: 'pattern', pattern: 'none' } }
+  }
 }
 
 export async function buildEstimateWorkbook(

@@ -25,3 +25,7 @@ Thumbs.db
 *.ntvs*
 *.njsproj
 *.sln
+
+# 발표자료
+*.pptx
+*.hwpx

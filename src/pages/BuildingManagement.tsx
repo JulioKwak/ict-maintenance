@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Building2, Search, ChevronRight, Trash2, Download, ClipboardCheck, Plus, FileText, X, ClipboardList, Pencil } from 'lucide-react'
-import { buildingsApi, inspectionsApi, techniciansApi, wageRatesApi } from '../utils/api'
+import { buildingsApi, inspectionsApi, techniciansApi, wageRatesApi, companyApi } from '../utils/api'
 import { EQUIPMENT_LIST, CATEGORY_COLORS, calcDirectLaborCost, calcCostBreakdown, countCheckedInspections, getTechnicianGrade, getAdjustmentFactor, meetsGradeRequirement, resolveWageRates } from '../data/equipment'
 import { onlyDigits, toMoneyDisplay } from '../utils/money'
 import AddressSearchModal from '../components/AddressSearchModal'
@@ -13,7 +13,7 @@ import { useAuth } from '../context/AuthContext'
 import { canDelete } from '../utils/permissions'
 import { INSPECTION_STATUS_STYLE } from '../utils/inspectionStatus'
 import { format } from 'date-fns'
-import * as XLSX from 'xlsx'
+import { downloadEstimateXlsx } from '../utils/estimateExport'
 
 const STATUS_LABELS: Record<BuildingStatus, string> = {
   등록: '등록', 작성중: '작성 중', 작성완료: '작성 완료', 점검표보완: '보완 필요', 검수중: '검수 중', 검수완료: '검수 완료',
@@ -57,6 +57,11 @@ export default function BuildingManagement() {
     maintenanceH1: true, maintenanceH2: true, performance: true,
   })
   const [savingEstimate, setSavingEstimate] = useState(false)
+
+  // 견적서 엑셀 다운로드 팝업 (수신자 입력)
+  const [showEstimateExport, setShowEstimateExport] = useState(false)
+  const [estimateExportForm, setEstimateExportForm] = useState({ recipient: '' })
+  const [exportingEstimate, setExportingEstimate] = useState(false)
 
   // 등록 설비 수정
   const [editingEquipment, setEditingEquipment] = useState(false)
@@ -278,41 +283,23 @@ export default function BuildingManagement() {
     })
   }
 
-  const exportEstimate = (building: Building) => {
-    const checkedEquipment = building.equipment.filter(e => e.checked)
-    const wb = XLSX.utils.book_new()
-    const data = [
-      ['정보통신설비 유지보수·관리 견적서'],
-      [],
-      ['건축물명', building.name],
-      ['주소', building.address],
-      ['연면적', `${building.floorArea.toLocaleString()}㎡`],
-      ['기술자 등급', building.technicianGrade],
-      ['노임단가', `${building.wageRate.toLocaleString()}원`],
-      ['연면적 조정계수', building.adjustmentFactor],
-      [],
-      ['대상설비'],
-      ['설비명', '카테고리', '단위', '기준인원', '조정계수 적용'],
-      ...checkedEquipment.map(be => {
-        const eq = EQUIPMENT_LIST.find(e => e.id === be.equipmentId)
-        return [eq?.name ?? '', eq?.category ?? '', eq?.unit ?? '', eq?.standardPersonnel ?? '', eq?.applyAdjustment ? '√' : '-']
-      }),
-      [],
-      ['대가산정 내역'],
-      ['항목', '금액'],
-      ['여비', `${building.directCost.travel.toLocaleString()}원`],
-      ['차량운행비', `${building.directCost.vehicle.toLocaleString()}원`],
-      ['현장소요경비', `${building.directCost.fieldExpense.toLocaleString()}원`],
-      ['제경비율', `${building.overheadRate}%`],
-      ['기술료율', `${building.techFeeRate}%`],
-      ['총 대가', `${building.totalCost.toLocaleString()}원`],
-      [],
-      ['작성일', new Date().toLocaleDateString('ko-KR')],
-    ]
-    const ws = XLSX.utils.aoa_to_sheet(data)
-    ws['!cols'] = [{ wch: 20 }, { wch: 30 }, { wch: 15 }, { wch: 12 }, { wch: 12 }]
-    XLSX.utils.book_append_sheet(wb, ws, '견적서')
-    XLSX.writeFile(wb, `견적서_${building.name}_${new Date().toLocaleDateString('ko-KR')}.xlsx`)
+  const openEstimateExport = () => {
+    setEstimateExportForm({ recipient: '' })
+    setShowEstimateExport(true)
+  }
+
+  const handleConfirmExport = async (building: Building) => {
+    setExportingEstimate(true)
+    try {
+      const company = await companyApi.get()
+      const issueDate = format(new Date(), 'yyyy-MM-dd')
+      await downloadEstimateXlsx(building, company, estimateExportForm.recipient, issueDate)
+      setShowEstimateExport(false)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '견적서 다운로드 중 오류가 발생했습니다.')
+    } finally {
+      setExportingEstimate(false)
+    }
   }
 
   return (
@@ -425,7 +412,7 @@ export default function BuildingManagement() {
                   >
                     <ClipboardCheck size={14} />점검표 검수
                   </button>
-                  <button onClick={() => exportEstimate(selected)} className="btn-secondary text-sm flex items-center gap-1.5">
+                  <button onClick={() => openEstimateExport()} className="btn-secondary text-sm flex items-center gap-1.5">
                     <Download size={14} />견적서 엑셀
                   </button>
                   <button
@@ -1027,6 +1014,44 @@ export default function BuildingManagement() {
                       </div>
                       )
                     })()}
+
+                    {/* 견적서 엑셀 다운로드 팝업 (수신자 입력) */}
+                    {showEstimateExport && (
+                      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                        <div className="bg-white w-full max-w-md" style={{ borderRadius: '18px', border: '1px solid #e0e0e0' }}>
+                          <div className="flex items-center justify-between p-5" style={{ borderBottom: '1px solid #f0f0f0' }}>
+                            <h3 className="font-semibold" style={{ color: '#1d1d1f', fontSize: '15px' }}>견적서 엑셀 다운로드</h3>
+                            <button onClick={() => setShowEstimateExport(false)} style={{ color: '#7a7a7a' }}><X size={20} /></button>
+                          </div>
+                          <div className="p-5 space-y-4">
+                            <div>
+                              <label className="block text-xs font-medium text-gray-700 mb-1">수신자(Recipient)</label>
+                              <input
+                                type="text"
+                                value={estimateExportForm.recipient}
+                                onChange={e => setEstimateExportForm({ recipient: e.target.value })}
+                                className="input-field text-sm"
+                                placeholder="수신자를 입력하세요"
+                                autoFocus
+                              />
+                            </div>
+                            <p style={{ fontSize: '12px', color: '#7a7a7a' }}>
+                              작성자: 한국전파진흥협회 · 발급일: 오늘 날짜로 자동 입력됩니다.
+                            </p>
+                            <div className="flex gap-3">
+                              <button
+                                onClick={() => handleConfirmExport(selected)}
+                                className="btn-primary flex-1 disabled:opacity-60"
+                                disabled={exportingEstimate}
+                              >
+                                {exportingEstimate ? '다운로드 중...' : '다운로드'}
+                              </button>
+                              <button onClick={() => setShowEstimateExport(false)} className="btn-secondary flex-1">취소</button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )
               })()}

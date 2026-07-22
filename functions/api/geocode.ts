@@ -33,13 +33,12 @@ export const onRequestGet: PagesFunction<Env, string, Data> = async ({ request, 
   const clientSecret = env.NAVER_CLIENT_SECRET.trim()
 
   const naverRes = await fetch(
-    `https://naveropenapi.apigw.ntruss.com/map-geocode/v2/geocode?query=${encodeURIComponent(query)}`,
+    `https://maps.apigw.ntruss.com/map-geocode/v2/geocode?query=${encodeURIComponent(query)}`,
     {
       headers: {
         'x-ncp-apigw-api-key-id': clientId,
         'x-ncp-apigw-api-key': clientSecret,
         'Accept': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
       },
     }
   )

@@ -11,6 +11,7 @@ import {
   Settings,
   Banknote,
   Briefcase,
+  FolderOpen,
   LogOut,
   Menu,
   X,
@@ -26,6 +27,7 @@ const NAV_ITEMS = [
   { path: '/buildings',         label: '건축물 관리', icon: Wrench },
   { path: '/my-inspections',    label: '점검표 작성', icon: ClipboardList },
   { path: '/ai-generate',       label: 'AI 생성',    icon: Sparkles },
+  { path: '/resources',         label: '자료실',     icon: FolderOpen },
   { path: '/technicians',       label: '기술자 관리', icon: HardHat },
   { path: '/users',             label: '사용자 관리', icon: Users },
 ]

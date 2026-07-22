@@ -9,6 +9,7 @@ import Inspection from './pages/Inspection'
 import InspectionReview from './pages/InspectionReview'
 import BuildingManagement from './pages/BuildingManagement'
 import AIGenerate from './pages/AIGenerate'
+import ResourceLibrary from './pages/ResourceLibrary'
 import TechnicianManagement from './pages/TechnicianManagement'
 import UserManagement from './pages/UserManagement'
 import MyInspections from './pages/MyInspections'
@@ -37,6 +38,7 @@ function AppRoutes() {
       <Route path="/inspection-review" element={<ProtectedRoute><InspectionReview /></ProtectedRoute>} />
       <Route path="/buildings" element={<ProtectedRoute><BuildingManagement /></ProtectedRoute>} />
       <Route path="/ai-generate" element={<ProtectedRoute><AIGenerate /></ProtectedRoute>} />
+      <Route path="/resources" element={<ProtectedRoute><ResourceLibrary /></ProtectedRoute>} />
       <Route path="/technicians" element={<ProtectedRoute><TechnicianManagement /></ProtectedRoute>} />
       <Route path="/users" element={<ProtectedRoute><UserManagement /></ProtectedRoute>} />
       <Route path="/my-inspections" element={<ProtectedRoute><MyInspections /></ProtectedRoute>} />

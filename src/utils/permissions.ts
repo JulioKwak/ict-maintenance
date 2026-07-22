@@ -3,7 +3,7 @@ import type { UserRole } from '../types'
 const ROLE_ALLOWED_PATHS: Record<UserRole, string[] | 'all'> = {
   admin: 'all',
   reviewer: 'all',
-  inspector: ['/my-inspections', '/inspection'],
+  inspector: ['/my-inspections', '/inspection', '/resources'],
 }
 
 export function canAccessPath(role: UserRole | undefined, pathname: string): boolean {
@@ -22,5 +22,9 @@ export function canDelete(role: UserRole | undefined): boolean {
 }
 
 export function canEditSystemSettings(role: UserRole | undefined): boolean {
+  return role === 'admin'
+}
+
+export function canManageResources(role: UserRole | undefined): boolean {
   return role === 'admin'
 }

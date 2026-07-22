@@ -183,3 +183,13 @@ export interface CostCalculation {
   vat: number
   totalCost: number
 }
+
+// 자료실 파일
+export interface ResourceFile {
+  id: string
+  filename: string
+  size: number
+  contentType: string
+  uploadedBy: string
+  createdAt: string
+}

@@ -6,3 +6,7 @@ compatibility_date = "2024-09-23"
 binding = "DB"
 database_name = "ict-maintenance-db"
 database_id = "f67437be-4866-45bc-9799-44f02c9fee4d"
+
+[[r2_buckets]]
+binding = "FILES"
+bucket_name = "ict-maintenance-files"

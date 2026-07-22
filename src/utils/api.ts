@@ -1,4 +1,4 @@
-import type { User, Technician, Building, InspectionForm, WageRateSet, CompanyInfo, TechnicianGrade } from '../types'
+import type { User, Technician, Building, InspectionForm, WageRateSet, CompanyInfo, TechnicianGrade, ResourceFile } from '../types'
 
 const BASE = '/api'
 
@@ -6,7 +6,7 @@ export function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
 }
 
-function getToken(): string {
+export function getToken(): string {
   return localStorage.getItem('ict_token') ?? ''
 }
 
@@ -16,16 +16,8 @@ function clearSession(): void {
   localStorage.removeItem('ict_last_activity')
 }
 
-async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${getToken()}`,
-      ...(options?.headers ?? {}),
-    },
-  })
-
+// 401/에러 응답 공통 처리 (세션 만료 리다이렉트, 에러 메시지 파싱). JSON 파싱 여부는 호출부에서 결정.
+async function checkResponse(res: Response, path: string): Promise<void> {
   if (res.status === 401) {
     const hadToken = !!getToken()
     clearSession()
@@ -41,12 +33,54 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     const err = await res.json().catch(() => ({ error: '오류가 발생했습니다.' })) as { error: string }
     throw new Error(err.error)
   }
+}
+
+async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${getToken()}`,
+      ...(options?.headers ?? {}),
+    },
+  })
+
+  await checkResponse(res, path)
 
   if (res.status === 204 || res.headers.get('content-length') === '0') {
     return undefined as T
   }
 
   return res.json() as Promise<T>
+}
+
+// FormData 업로드용: request()와 달리 Content-Type을 강제하지 않는다(브라우저가 multipart 경계를 자동 설정).
+async function uploadFile<T>(path: string, formData: FormData): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${getToken()}` },
+    body: formData,
+  })
+  await checkResponse(res, path)
+  return res.json() as Promise<T>
+}
+
+// 파일 다운로드용: JSON이 아닌 Blob 응답을 받아 브라우저에 즉시 저장한다.
+async function downloadFile(path: string, filename: string): Promise<void> {
+  const res = await fetch(`${BASE}${path}`, {
+    headers: { 'Authorization': `Bearer ${getToken()}` },
+  })
+  await checkResponse(res, path)
+
+  const blob = await res.blob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
 }
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
@@ -191,4 +225,21 @@ export const inspectionsApi = {
 
   delete: (id: string) =>
     request<void>(`/inspections/${id}`, { method: 'DELETE' }),
+}
+
+// ─── 자료실 ────────────────────────────────────────────────────────────────────
+
+export const resourcesApi = {
+  getAll: () => request<ResourceFile[]>('/resources'),
+
+  upload: (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return uploadFile<ResourceFile>('/resources', formData)
+  },
+
+  download: (file: ResourceFile) => downloadFile(`/resources/${file.id}`, file.filename),
+
+  delete: (id: string) =>
+    request<void>(`/resources/${id}`, { method: 'DELETE' }),
 }

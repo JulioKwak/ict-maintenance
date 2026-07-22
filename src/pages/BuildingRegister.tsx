@@ -173,26 +173,6 @@ export default function BuildingRegister() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">주소 <span className="text-red-500">*</span></label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={address}
-                onChange={e => setAddress(e.target.value)}
-                className="input-field"
-                placeholder="건축물 주소를 입력하세요"
-                required
-              />
-              <button
-                type="button"
-                onClick={() => setShowAddressSearch(true)}
-                className="btn-secondary text-sm px-3 shrink-0 flex items-center gap-1"
-              >
-                <Search size={14} />주소 검색
-              </button>
-            </div>
-          </div>
-          <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               연면적 (㎡) <span className="text-red-500">*</span>
             </label>
@@ -232,6 +212,26 @@ export default function BuildingRegister() {
                 <span className="text-xs">연면적 기준({techGrade} 이상)을 충족하는 기술자가 없습니다. 기술자 관리에서 등급을 확인하세요.</span>
               </div>
             )}
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">주소 <span className="text-red-500">*</span></label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={address}
+                onChange={e => setAddress(e.target.value)}
+                className="input-field flex-1"
+                placeholder="건축물 주소를 입력하세요"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowAddressSearch(true)}
+                className="btn-secondary text-sm px-3 shrink-0 flex items-center gap-1"
+              >
+                <Search size={14} />주소 검색
+              </button>
+            </div>
           </div>
         </div>
 

@@ -66,10 +66,7 @@ function fillEstimateSheet(
   ws.getCell('C7').value = '한국전파진흥협회'
   ws.getCell('C8').value = issueDate
 
-  const projectNameCell = ws.getCell('C9')
-  projectNameCell.value = `   정보통신설비 유지관리 및 성능 점검(${building.address})`
-  // 주소 길이가 길어져도 줄바꿈 없이 한 줄로 보이도록 폭에 맞춰 글자 크기를 자동으로 줄인다.
-  projectNameCell.alignment = { ...projectNameCell.alignment, wrapText: false, shrinkToFit: true }
+  ws.getCell('C9').value = `   정보통신설비 유지관리 및 성능 점검(${building.address})`
 
   ws.getCell('E5').value = `   사업자번호 : ${company.businessNumber} / 대 표 : ${company.representativeName} (인)`
   const companyAddressCell = ws.getCell('E6')

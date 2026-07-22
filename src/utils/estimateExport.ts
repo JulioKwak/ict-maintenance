@@ -65,9 +65,16 @@ function fillEstimateSheet(
   ws.getCell('C6').value = recipient
   ws.getCell('C7').value = '한국전파진흥협회'
   ws.getCell('C8').value = issueDate
-  ws.getCell('C9').value = `   정보통신설비 유지관리 및 성능 점검(${building.address})`
+
+  const projectNameCell = ws.getCell('C9')
+  projectNameCell.value = `   정보통신설비 유지관리 및 성능 점검(${building.address})`
+  // 주소 길이가 길어져도 줄바꿈 없이 한 줄로 보이도록 폭에 맞춰 글자 크기를 자동으로 줄인다.
+  projectNameCell.alignment = { ...projectNameCell.alignment, wrapText: false, shrinkToFit: true }
+
   ws.getCell('E5').value = `   사업자번호 : ${company.businessNumber} / 대 표 : ${company.representativeName} (인)`
-  ws.getCell('E6').value = `   주소 : ${company.address}`
+  const companyAddressCell = ws.getCell('E6')
+  companyAddressCell.value = `   주소 : ${company.address}`
+  companyAddressCell.alignment = { ...companyAddressCell.alignment, wrapText: false, shrinkToFit: true }
   ws.getCell('E7').value = `   연락처 : ${company.phone}`
   ws.getCell('E8').value = `   e-mail : ${company.email}`
   ws.getCell('G25').value = building.discountRate / 100
@@ -121,11 +128,31 @@ function fillDetailSheet(
     .map(category => ({ category, items: items.filter(it => it.equipment.category === category) }))
     .filter(g => g.items.length > 0)
   const totalCount = grouped.reduce((n, g) => n + g.items.length, 0)
+  const originalTotalRow = DETAIL_DATA_START_ROW + DETAIL_TEMPLATE_ROWS // 원본 템플릿의 "전체" 합계 행(39)
 
-  // 세로 병합된 분류 라벨(A열)은 행 수가 바뀌면 범위가 깨지므로 먼저 해제한다.
+  // exceljs는 duplicateRow/spliceRows로 행 수를 바꿔도 병합 범위를 따라가지 않고 원래 좌표에 그대로 남겨둔다.
+  // 병합된 채로 행을 복제/삭제하면 값이 인접 셀에 그대로 복사되거나(예: B38:E38 → 새 행에 텍스트가 4칸 다 채워짐)
+  // 옛 병합 좌표가 새 데이터 행과 겹쳐 재병합이 조용히 실패하는 문제가 생기므로, 리사이즈 전에 관련 병합을 모두 해제한다.
+  // (unMergeCells는 마스터가 아닌 셀의 채우기색 등 스타일도 초기화해버리므로, 리사이즈 후 되돌릴 수 있게 스타일을 미리 캡처해둔다.)
+  const categoryLabelStyle = { ...ws.getCell(`A${DETAIL_DATA_START_ROW}`).style }
+  const dataCellStyle = {
+    B: { ...ws.getCell(`B${DETAIL_DATA_START_ROW}`).style },
+    F: { ...ws.getCell(`F${DETAIL_DATA_START_ROW}`).style },
+    G: { ...ws.getCell(`G${DETAIL_DATA_START_ROW}`).style },
+    H: { ...ws.getCell(`H${DETAIL_DATA_START_ROW}`).style },
+  }
+  const totalRowStyle = {
+    A: { ...ws.getCell(`A${originalTotalRow}`).style },
+    B: { ...ws.getCell(`B${originalTotalRow}`).style },
+    G: { ...ws.getCell(`G${originalTotalRow}`).style },
+    H: { ...ws.getCell(`H${originalTotalRow}`).style },
+  }
+
   safeUnmerge(ws, 'A21:A28')
   safeUnmerge(ws, 'A30:A36')
   safeUnmerge(ws, 'A37:A38')
+  for (let r = DETAIL_DATA_START_ROW; r < originalTotalRow; r += 1) safeUnmerge(ws, `B${r}:E${r}`)
+  safeUnmerge(ws, `B${originalTotalRow}:F${originalTotalRow}`)
 
   if (totalCount > DETAIL_TEMPLATE_ROWS) {
     ws.duplicateRow(DETAIL_DATA_START_ROW + DETAIL_TEMPLATE_ROWS - 1, totalCount - DETAIL_TEMPLATE_ROWS, true)
@@ -138,24 +165,42 @@ function fillDetailSheet(
     const startRow = row
     g.items.forEach(item => {
       const personnel = personnelOf(item, building.adjustmentFactor)
-      ws.getCell(`B${row}`).value = item.equipment.name
-      ws.getCell(`F${row}`).value = item.equipment.unit
-      ws.getCell(`G${row}`).value = personnel
-      ws.getCell(`H${row}`).value = personnel * building.wageRate
+      const bCell = ws.getCell(`B${row}`)
+      const fCell = ws.getCell(`F${row}`)
+      const gCell = ws.getCell(`G${row}`)
+      const hCell = ws.getCell(`H${row}`)
+      bCell.value = item.equipment.name
+      fCell.value = `${item.quantity}${item.equipment.unit}`
+      gCell.value = personnel
+      hCell.value = personnel * building.wageRate
+      bCell.style = dataCellStyle.B
+      fCell.style = dataCellStyle.F
+      gCell.style = dataCellStyle.G
+      hCell.style = dataCellStyle.H
       safeMerge(ws, `B${row}:E${row}`)
       row += 1
     })
     const endRow = row - 1
-    ws.getCell(`A${startRow}`).value = CATEGORY_LABELS[g.category]
+    const labelCell = ws.getCell(`A${startRow}`)
+    labelCell.value = CATEGORY_LABELS[g.category]
+    labelCell.style = categoryLabelStyle
     if (endRow > startRow) safeMerge(ws, `A${startRow}:A${endRow}`)
   })
 
   const totalRow = DETAIL_DATA_START_ROW + totalCount
-  ws.getCell(`A${totalRow}`).value = '전체'
-  ws.getCell(`B${totalRow}`).value = `${totalCount}건`
+  const totalA = ws.getCell(`A${totalRow}`)
+  const totalB = ws.getCell(`B${totalRow}`)
+  const totalG = ws.getCell(`G${totalRow}`)
+  const totalH = ws.getCell(`H${totalRow}`)
+  totalA.value = '전체'
+  totalB.value = `${totalCount}건`
+  totalG.value = totalPersonnel
+  totalH.value = directLaborCost
+  totalA.style = totalRowStyle.A
+  totalB.style = totalRowStyle.B
+  totalG.style = totalRowStyle.G
+  totalH.style = totalRowStyle.H
   safeMerge(ws, `B${totalRow}:F${totalRow}`)
-  ws.getCell(`G${totalRow}`).value = totalPersonnel
-  ws.getCell(`H${totalRow}`).value = directLaborCost
 }
 
 export async function buildEstimateWorkbook(

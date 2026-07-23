@@ -193,27 +193,25 @@ export const companyApi = {
     request<CompanyInfo>('/company', { method: 'PUT', body: JSON.stringify(data) }),
 }
 
-// ─── Local Search (네이버 지역 검색 - 건물명/부분 주소로 후보 검색) ──────────────────
+// ─── 주소 검색 (네이버 Geocoding + 지역 검색을 합쳐 부분 주소·건물명 후보를 함께 조회) ──
 
-export interface LocalSearchItem {
+export interface AddressCandidate {
   title: string
   category: string
   address: string
   roadAddress: string
-  mapx: string
-  mapy: string
 }
 
-export interface LocalSearchResult {
-  items: LocalSearchItem[]
+export interface AddressSearchResult {
+  items: AddressCandidate[]
   total: number
   page: number
   totalPages: number
 }
 
-export const localSearchApi = {
+export const addressSearchApi = {
   search: (query: string, page: number = 1) =>
-    request<LocalSearchResult>(`/local-search?query=${encodeURIComponent(query)}&page=${page}`),
+    request<AddressSearchResult>(`/address-search?query=${encodeURIComponent(query)}&page=${page}`),
 }
 
 // ─── Inspections ──────────────────────────────────────────────────────────────

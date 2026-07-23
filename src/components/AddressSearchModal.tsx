@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Search, X, Loader2, MapPin, ChevronLeft, ChevronRight } from 'lucide-react'
-import { localSearchApi, type LocalSearchItem } from '../utils/api'
+import { addressSearchApi, type AddressCandidate } from '../utils/api'
 
 interface Props {
   isOpen: boolean
@@ -10,7 +10,7 @@ interface Props {
 
 export default function AddressSearchModal({ isOpen, onClose, onSelect }: Props) {
   const [query, setQuery] = useState('')
-  const [results, setResults] = useState<LocalSearchItem[]>([])
+  const [results, setResults] = useState<AddressCandidate[]>([])
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [loading, setLoading] = useState(false)
@@ -24,7 +24,7 @@ export default function AddressSearchModal({ isOpen, onClose, onSelect }: Props)
     setSearched(true)
     setError('')
     try {
-      const result = await localSearchApi.search(query.trim(), targetPage)
+      const result = await addressSearchApi.search(query.trim(), targetPage)
       setResults(result.items)
       setPage(result.page)
       setTotalPages(result.totalPages)
@@ -42,7 +42,7 @@ export default function AddressSearchModal({ isOpen, onClose, onSelect }: Props)
     runSearch(1)
   }
 
-  const handleSelect = (item: LocalSearchItem) => {
+  const handleSelect = (item: AddressCandidate) => {
     onSelect(item.roadAddress || item.address)
     handleClose()
   }
@@ -103,8 +103,12 @@ export default function AddressSearchModal({ isOpen, onClose, onSelect }: Props)
                 <div className="flex items-start gap-2">
                   <MapPin size={14} className="mt-0.5 shrink-0" style={{ color: '#0066cc' }} />
                   <div className="min-w-0">
-                    <p className="text-sm font-medium truncate" style={{ color: '#1d1d1f' }}>{item.title}</p>
-                    <p className="text-xs mt-0.5" style={{ color: '#7a7a7a' }}>{item.roadAddress || item.address}</p>
+                    <p className="text-sm font-medium truncate" style={{ color: '#1d1d1f' }}>
+                      {item.title || item.roadAddress || item.address}
+                    </p>
+                    {item.title && (
+                      <p className="text-xs mt-0.5" style={{ color: '#7a7a7a' }}>{item.roadAddress || item.address}</p>
+                    )}
                   </div>
                 </div>
               </button>

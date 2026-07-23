@@ -4,6 +4,7 @@ import { wageRatesApi } from '../utils/api'
 import { useAuth } from '../context/AuthContext'
 import { useModal } from '../context/ModalContext'
 import { canDelete, canEditSystemSettings } from '../utils/permissions'
+import { onlyDigits, toMoneyDisplay } from '../utils/money'
 import type { WageRateSet, TechnicianGrade } from '../types'
 
 const GRADES: TechnicianGrade[] = ['특급기술자', '고급기술자', '중급기술자', '초급기술자']
@@ -159,9 +160,10 @@ export default function WageRateManagement() {
                 <div key={g}>
                   <label className="block text-sm font-medium text-gray-700 mb-1">{g} 노임단가 (원) *</label>
                   <input
-                    type="number"
-                    value={formRates[g]}
-                    onChange={e => setFormRates(f => ({ ...f, [g]: e.target.value }))}
+                    type="text"
+                    inputMode="numeric"
+                    value={toMoneyDisplay(formRates[g])}
+                    onChange={e => setFormRates(f => ({ ...f, [g]: onlyDigits(e.target.value) }))}
                     className="input-field"
                     placeholder="일 노임단가"
                     required

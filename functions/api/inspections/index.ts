@@ -41,6 +41,13 @@ export const onRequestPost: PagesFunction<Env, string, Data> = async ({ request,
   const id = genId()
   const now = new Date().toISOString()
 
+  const existing = await env.DB.prepare(
+    'SELECT id FROM inspection_forms WHERE building_id = ? AND inspection_type = ?'
+  ).bind(b.buildingId, b.inspectionType).first<{ id: string }>()
+  if (existing) {
+    return Response.json({ error: '이미 등록된 점검 유형입니다. 건축물당 각 점검표는 1개만 등록할 수 있습니다.' }, { status: 409 })
+  }
+
   await env.DB.prepare(`
     INSERT INTO inspection_forms
       (id, building_id, inspection_type, inspection_date, items_json, status, review_note, equipment_reviews_json, assigned_inspectors_json, created_by, created_at, updated_at)

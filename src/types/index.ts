@@ -107,8 +107,10 @@ export interface Building {
   updatedAt: string
 }
 
-// 점검 유형
-export type InspectionType = '기능점검' | '성능점검'
+// 점검 유형 (건축물당 각 유형은 영구 1개만 등록 가능)
+export type InspectionType = '기능점검(상반기)' | '기능점검(하반기)' | '성능점검'
+
+export const INSPECTION_TYPES: InspectionType[] = ['기능점검(상반기)', '기능점검(하반기)', '성능점검']
 
 // 점검 결과
 export type InspectionResult = '적합' | '부적합' | '해당없음' | ''

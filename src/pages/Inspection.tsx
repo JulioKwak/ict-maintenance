@@ -9,6 +9,7 @@ import { useModal } from '../context/ModalContext'
 import AssignInspectorsModal from '../components/AssignInspectorsModal'
 import { deriveReviewStatus, INSPECTION_STATUS_STYLE } from '../utils/inspectionStatus'
 import type { Building, InspectionForm, InspectionFormStatus, InspectionType, InspectionItem, InspectionLocation, InspectionResult, InspectionPhoto, User } from '../types'
+import { INSPECTION_TYPES } from '../types'
 import { format } from 'date-fns'
 
 export default function Inspection() {
@@ -21,7 +22,7 @@ export default function Inspection() {
   const paramBuildingId = searchParams.get('buildingId') ?? ''
   const paramInspectionId = searchParams.get('inspectionId') ?? ''
   const paramDate = searchParams.get('date') ?? format(new Date(), 'yyyy-MM-dd')
-  const paramType = (searchParams.get('type') as InspectionType | null) ?? '기능점검'
+  const paramType = (searchParams.get('type') as InspectionType | null) ?? '기능점검(상반기)'
   const paramInspectorIds = (searchParams.get('inspectors') ?? '').split(',').filter(Boolean)
 
   const [step, setStep] = useState<'select' | 'form'>('select')
@@ -72,7 +73,7 @@ export default function Inspection() {
     const items: InspectionItem[] = checkedEquipment.flatMap(be => {
       const template = INSPECTION_ITEMS[be.equipmentId]
       if (!template) return []
-      const templateItems = paramType === '기능점검' ? template.functional : template.performance
+      const templateItems = paramType === '성능점검' ? template.performance : template.functional
       return templateItems.map((t): InspectionItem => ({
         id: generateId(),
         equipmentId: be.equipmentId,
@@ -123,8 +124,22 @@ export default function Inspection() {
     [inspections, selectedBuildingId]
   )
 
+  // 건축물당 각 점검 유형은 1개만 등록 가능 - 이미 등록된 유형은 새로 만들 수 없다.
+  const availableTypes = useMemo(() => {
+    const used = new Set(buildingInspections.map(i => i.inspectionType))
+    return INSPECTION_TYPES.filter(t => !used.has(t))
+  }, [buildingInspections])
+
+  useEffect(() => {
+    if (availableTypes.length > 0 && !availableTypes.includes(inspectionType)) {
+      setInspectionType(availableTypes[0])
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedBuildingId, availableTypes])
+
   const handleStart = () => {
     if (!selectedBuildingId) return
+    if (!selectedInspectionId && availableTypes.length === 0) return
 
     if (selectedInspectionId) {
       const existing = inspections.find(i => i.id === selectedInspectionId)
@@ -144,7 +159,7 @@ export default function Inspection() {
     const items: InspectionItem[] = checkedEquipment.flatMap(be => {
       const template = INSPECTION_ITEMS[be.equipmentId]
       if (!template) return []
-      const templateItems = inspectionType === '기능점검' ? template.functional : template.performance
+      const templateItems = inspectionType === '성능점검' ? template.performance : template.functional
       return templateItems.map(t => ({
         id: generateId(),
         equipmentId: be.equipmentId,
@@ -408,12 +423,18 @@ export default function Inspection() {
                   </div>
                 )}
 
-                {!selectedInspectionId && (
+                {!selectedInspectionId && availableTypes.length === 0 && (
+                  <p className="text-sm text-center py-3 bg-gray-50 rounded-lg text-gray-500">
+                    이 건축물은 모든 점검 유형이 이미 등록되어 있습니다. 위 목록에서 불러와 이어서 작성하세요.
+                  </p>
+                )}
+
+                {!selectedInspectionId && availableTypes.length > 0 && (
                   <>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">점검 유형 *</label>
                       <div className="flex gap-3">
-                        {(['기능점검', '성능점검'] as InspectionType[]).map(type => (
+                        {availableTypes.map(type => (
                           <button
                             key={type}
                             type="button"
@@ -444,7 +465,8 @@ export default function Inspection() {
 
                 <button
                   onClick={handleStart}
-                  className="btn-primary w-full"
+                  disabled={!selectedInspectionId && availableTypes.length === 0}
+                  className="btn-primary w-full disabled:opacity-60"
                 >
                   {selectedInspectionId ? '점검표 불러오기' : '점검표 작성 시작'}
                 </button>

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ClipboardList, ChevronRight, FileText } from 'lucide-react'
 import { inspectionsApi, buildingsApi } from '../utils/api'
 import { useAuth } from '../context/AuthContext'
-import { INSPECTION_STATUS_STYLE } from '../utils/inspectionStatus'
+import { INSPECTION_STATUS_STYLE, INSPECTION_TYPE_STYLE } from '../utils/inspectionStatus'
 import type { InspectionForm, Building } from '../types'
 
 export default function MyInspections() {
@@ -54,7 +54,7 @@ export default function MyInspections() {
                   <div className="min-w-0">
                     <p className="text-sm font-medium truncate" style={{ color: '#1d1d1f' }}>{building?.name ?? '-'}</p>
                     <div className="flex items-center gap-2 mt-0.5">
-                      <span className={`text-xs px-2 py-0.5 rounded ${insp.inspectionType === '기능점검' ? 'bg-blue-50 text-blue-700' : 'bg-purple-50 text-purple-700'}`}>
+                      <span className={`text-xs px-2 py-0.5 rounded ${INSPECTION_TYPE_STYLE[insp.inspectionType]}`}>
                         {insp.inspectionType}
                       </span>
                       <span className="text-xs" style={{ color: '#7a7a7a' }}>{insp.inspectionDate}</span>

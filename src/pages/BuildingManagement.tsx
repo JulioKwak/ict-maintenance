@@ -6,13 +6,14 @@ import { EQUIPMENT_LIST, CATEGORY_COLORS, calcDirectLaborCost, calcCostBreakdown
 import { onlyDigits, toMoneyDisplay } from '../utils/money'
 import AddressSearchModal, { type AddressSelection } from '../components/AddressSearchModal'
 import type { Building, BuildingStatus, Equipment, EquipmentCategory, InspectionForm, InspectionType, Technician, TechnicianGrade, WageRateSet } from '../types'
+import { INSPECTION_TYPES } from '../types'
 import PasswordConfirmModal from '../components/PasswordConfirmModal'
 import EquipmentSelector from '../components/EquipmentSelector'
 import AssignInspectorsModal from '../components/AssignInspectorsModal'
 import { useAuth } from '../context/AuthContext'
 import { useModal } from '../context/ModalContext'
 import { canDelete } from '../utils/permissions'
-import { INSPECTION_STATUS_STYLE } from '../utils/inspectionStatus'
+import { INSPECTION_STATUS_STYLE, INSPECTION_TYPE_STYLE } from '../utils/inspectionStatus'
 import { format } from 'date-fns'
 import { downloadEstimateXlsx } from '../utils/estimateExport'
 
@@ -40,7 +41,7 @@ export default function BuildingManagement() {
   // 새 점검표 모달
   const [showNewInspModal, setShowNewInspModal] = useState(false)
   const [newInspDate, setNewInspDate] = useState(format(new Date(), 'yyyy-MM-dd'))
-  const [newInspType, setNewInspType] = useState<InspectionType>('기능점검')
+  const [newInspType, setNewInspType] = useState<InspectionType>('기능점검(상반기)')
   const [newInspInspectorIds, setNewInspInspectorIds] = useState<string[]>([])
   const [showAssignModal, setShowAssignModal] = useState(false)
 
@@ -118,6 +119,24 @@ export default function BuildingManagement() {
     () => allInspections.filter(i => i.buildingId === selectedId).sort((a, b) => b.inspectionDate.localeCompare(a.inspectionDate)),
     [allInspections, selectedId]
   )
+
+  // 건축물당 각 점검 유형은 1개만 등록 가능 - 이미 등록된 유형은 "새 점검표"에서 뺀다.
+  const availableNewInspTypes = useMemo(() => {
+    const used = new Set(selectedInspections.map(i => i.inspectionType))
+    return INSPECTION_TYPES.filter(t => !used.has(t))
+  }, [selectedInspections])
+
+  // 목록 카드에 유형별 최신 상태를 보여주기 위한 조회 맵: buildingId -> type -> 최신 InspectionForm
+  const latestInspectionByBuildingType = useMemo(() => {
+    const map = new Map<string, Map<InspectionType, InspectionForm>>()
+    for (const insp of allInspections) {
+      let byType = map.get(insp.buildingId)
+      if (!byType) { byType = new Map(); map.set(insp.buildingId, byType) }
+      const current = byType.get(insp.inspectionType)
+      if (!current || insp.inspectionDate > current.inspectionDate) byType.set(insp.inspectionType, insp)
+    }
+    return map
+  }, [allInspections])
 
   // 건축물 수정 팝업 - 연면적 기준 파생값(건축물 등록 화면과 동일한 로직)
   const editArea = parseFloat(buildingEditForm.floorArea) || 0
@@ -386,7 +405,7 @@ export default function BuildingManagement() {
                     borderColor: selectedId === b.id ? '#0066cc' : '#e0e0e0',
                   }}>
                   <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium truncate" style={{ color: '#1d1d1f' }}>{b.name}</p>
                       <p className="text-xs truncate mt-0.5" style={{ color: '#7a7a7a' }}>{b.address}</p>
                       <p className="text-xs mt-0.5" style={{ color: '#7a7a7a' }}>
@@ -396,10 +415,24 @@ export default function BuildingManagement() {
                         )}
                       </p>
                     </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <span className={STATUS_COLORS[b.status]}>{STATUS_LABELS[b.status]}</span>
-                      <ChevronRight size={12} style={{ color: '#cccccc' }} />
-                    </div>
+                    <ChevronRight size={12} className="mt-0.5 shrink-0" style={{ color: '#cccccc' }} />
+                  </div>
+                  <div className="mt-2 pt-2 space-y-1" style={{ borderTop: '1px solid #f0f0f0' }}>
+                    {INSPECTION_TYPES.map(type => {
+                      const latest = latestInspectionByBuildingType.get(b.id)?.get(type)
+                      return (
+                        <div key={type} className="flex items-center justify-between">
+                          <span className="text-[11px]" style={{ color: '#7a7a7a' }}>{type}</span>
+                          {latest ? (
+                            <span className={`text-[11px] px-1.5 py-0.5 rounded ${INSPECTION_STATUS_STYLE[latest.status] ?? 'bg-gray-100 text-gray-600'}`}>
+                              {latest.status}
+                            </span>
+                          ) : (
+                            <span className="text-[11px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-400">미등록</span>
+                          )}
+                        </div>
+                      )
+                    })}
                   </div>
                 </button>
               ))
@@ -1103,13 +1136,15 @@ export default function BuildingManagement() {
                   <h3 className="font-semibold" style={{ color: '#1d1d1f' }}>
                     점검 내역 {selectedInspections.length > 0 && `(${selectedInspections.length}건)`}
                   </h3>
-                  <button
-                    onClick={() => { setShowNewInspModal(true); setNewInspDate(format(new Date(), 'yyyy-MM-dd')); setNewInspType('기능점검'); setNewInspInspectorIds([]) }}
-                    className="flex items-center gap-1 text-sm font-medium"
-                    style={{ color: '#0066cc' }}
-                  >
-                    <Plus size={14} />새 점검표
-                  </button>
+                  {availableNewInspTypes.length > 0 && (
+                    <button
+                      onClick={() => { setShowNewInspModal(true); setNewInspDate(format(new Date(), 'yyyy-MM-dd')); setNewInspType(availableNewInspTypes[0]); setNewInspInspectorIds([]) }}
+                      className="flex items-center gap-1 text-sm font-medium"
+                      style={{ color: '#0066cc' }}
+                    >
+                      <Plus size={14} />새 점검표
+                    </button>
+                  )}
                 </div>
 
                 {selectedInspections.length === 0 ? (
@@ -1138,7 +1173,7 @@ export default function BuildingManagement() {
                           <FileText size={14} style={{ color: '#7a7a7a', flexShrink: 0 }} />
                           <div className="min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className={`text-xs px-2 py-0.5 rounded ${insp.inspectionType === '기능점검' ? 'bg-blue-50 text-blue-700' : 'bg-purple-50 text-purple-700'}`}>
+                              <span className={`text-xs px-2 py-0.5 rounded ${INSPECTION_TYPE_STYLE[insp.inspectionType]}`}>
                                 {insp.inspectionType}
                               </span>
                               <span className="text-sm font-medium" style={{ color: '#1d1d1f' }}>{insp.inspectionDate}</span>
@@ -1194,7 +1229,7 @@ export default function BuildingManagement() {
               <div>
                 <label className="block text-sm font-medium mb-1.5" style={{ color: '#1d1d1f' }}>점검 유형</label>
                 <div className="flex gap-2">
-                  {(['기능점검', '성능점검'] as const).map(type => (
+                  {availableNewInspTypes.map(type => (
                     <button
                       key={type}
                       type="button"

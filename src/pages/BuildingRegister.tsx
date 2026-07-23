@@ -15,9 +15,11 @@ import { onlyDigits, toMoneyDisplay } from '../utils/money'
 import type { Building, Technician, TechnicianGrade, WageRateSet } from '../types'
 import EquipmentSelector from '../components/EquipmentSelector'
 import AddressSearchModal from '../components/AddressSearchModal'
+import { useModal } from '../context/ModalContext'
 
 export default function BuildingRegister() {
   const navigate = useNavigate()
+  const { alert: showAlert } = useModal()
   const [technicians, setTechnicians] = useState<Technician[]>([])
   const [wageRateSets, setWageRateSets] = useState<WageRateSet[]>([])
   const [saving, setSaving] = useState(false)
@@ -138,7 +140,7 @@ export default function BuildingRegister() {
       await buildingsApi.create(buildingData)
       navigate('/buildings')
     } catch (err) {
-      alert(err instanceof Error ? err.message : '등록 중 오류가 발생했습니다.')
+      await showAlert(err instanceof Error ? err.message : '등록 중 오류가 발생했습니다.')
     } finally {
       setSaving(false)
     }

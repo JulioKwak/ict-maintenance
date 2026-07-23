@@ -5,6 +5,7 @@ import { buildingsApi, inspectionsApi, usersApi, generateId } from '../utils/api
 import { EQUIPMENT_LIST } from '../data/equipment'
 import { INSPECTION_ITEMS } from '../data/inspectionItems'
 import { useAuth } from '../context/AuthContext'
+import { useModal } from '../context/ModalContext'
 import AssignInspectorsModal from '../components/AssignInspectorsModal'
 import { deriveReviewStatus, INSPECTION_STATUS_STYLE } from '../utils/inspectionStatus'
 import type { Building, InspectionForm, InspectionFormStatus, InspectionType, InspectionItem, InspectionLocation, InspectionResult, InspectionPhoto, User } from '../types'
@@ -12,6 +13,7 @@ import { format } from 'date-fns'
 
 export default function Inspection() {
   const { user } = useAuth()
+  const { alert: showAlert, confirm: showConfirm } = useModal()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
 
@@ -203,18 +205,18 @@ export default function Inspection() {
         setBuildings(prev => prev.map(b => b.id === building.id ? { ...b, status: '작성중' } : b))
       }
       setForm(saved)
-      alert('저장되었습니다.')
+      await showAlert('저장되었습니다.')
     } catch (err) {
-      alert(err instanceof Error ? err.message : '저장 중 오류가 발생했습니다.')
+      await showAlert(err instanceof Error ? err.message : '저장 중 오류가 발생했습니다.')
     } finally {
       setSaving(false)
     }
-  }, [form, formExistsInDb, buildings, saving])
+  }, [form, formExistsInDb, buildings, saving, showAlert])
 
   const completeInspection = useCallback(async () => {
     if (!form || saving) return
     const isSupplementFlow = form.status === '점검표보완'
-    if (!window.confirm(isSupplementFlow ? '보완 사항을 제출하시겠습니까?' : '점검을 완료 처리하시겠습니까?')) return
+    if (!(await showConfirm(isSupplementFlow ? '보완 사항을 제출하시겠습니까?' : '점검을 완료 처리하시겠습니까?'))) return
     setSaving(true)
     try {
       const allEquipmentIds = [...new Set(form.items.map(i => i.equipmentId))]
@@ -250,14 +252,14 @@ export default function Inspection() {
         await buildingsApi.update(building.id, { status: nextStatus })
       }
       setForm(saved)
-      alert(isSupplementFlow ? '보완 사항이 제출되었습니다.' : '점검이 완료 처리되었습니다.')
+      await showAlert(isSupplementFlow ? '보완 사항이 제출되었습니다.' : '점검이 완료 처리되었습니다.')
       navigate(user?.role === 'inspector' ? '/my-inspections' : '/buildings')
     } catch (err) {
-      alert(err instanceof Error ? err.message : '처리 중 오류가 발생했습니다.')
+      await showAlert(err instanceof Error ? err.message : '처리 중 오류가 발생했습니다.')
     } finally {
       setSaving(false)
     }
-  }, [form, formExistsInDb, buildings, saving, user])
+  }, [form, formExistsInDb, buildings, saving, user, showAlert, showConfirm])
 
   const handleApplyInspectors = useCallback(async (ids: string[]) => {
     setForm(prev => prev ? { ...prev, assignedInspectorIds: ids } : prev)
@@ -266,9 +268,9 @@ export default function Inspection() {
       const updated = await inspectionsApi.update(form.id, { assignedInspectorIds: ids })
       setForm(updated)
     } catch (err) {
-      alert(err instanceof Error ? err.message : '점검자 지정 중 오류가 발생했습니다.')
+      await showAlert(err instanceof Error ? err.message : '점검자 지정 중 오류가 발생했습니다.')
     }
-  }, [form, formExistsInDb])
+  }, [form, formExistsInDb, showAlert])
 
   const updateItemLocation = useCallback((
     itemId: string,

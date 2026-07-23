@@ -4,11 +4,13 @@ import { CheckCircle, AlertTriangle, Circle, ChevronRight, MessageSquare, ArrowL
 import { inspectionsApi, buildingsApi } from '../utils/api'
 import { EQUIPMENT_LIST } from '../data/equipment'
 import { useAuth } from '../context/AuthContext'
+import { useModal } from '../context/ModalContext'
 import { deriveReviewStatus, INSPECTION_STATUS_STYLE } from '../utils/inspectionStatus'
 import type { InspectionForm, InspectionItem, EquipmentReview, Building } from '../types'
 
 export default function InspectionReview() {
   const { user } = useAuth()
+  const { alert: showAlert, confirm: showConfirm } = useModal()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const paramBuildingId = searchParams.get('buildingId') ?? ''
@@ -97,7 +99,7 @@ export default function InspectionReview() {
 
   const handleEquipmentReview = async (eqId: string, result: '보완' | '검수완료', note: string) => {
     if (!selectedInspection) return
-    if (result === '보완' && !note.trim()) { alert('보완 사유를 입력해주세요.'); return }
+    if (result === '보완' && !note.trim()) { await showAlert('보완 사유를 입력해주세요.'); return }
     setSaving(true)
     try {
       const updatedReviews = { ...selectedInspection.equipmentReviews, [eqId]: { result, note } }
@@ -109,7 +111,7 @@ export default function InspectionReview() {
         setBuildings(prev => prev.map(b => b.id === selectedBuilding.id ? { ...b, status: newStatus } : b))
       }
     } catch (err) {
-      alert(err instanceof Error ? err.message : '처리 중 오류가 발생했습니다.')
+      await showAlert(err instanceof Error ? err.message : '처리 중 오류가 발생했습니다.')
     } finally {
       setSaving(false)
     }
@@ -117,7 +119,7 @@ export default function InspectionReview() {
 
   const handleFinalApprove = async () => {
     if (!selectedInspection) return
-    if (!window.confirm('최종 검수 완료 처리하시겠습니까?')) return
+    if (!(await showConfirm('최종 검수 완료 처리하시겠습니까?'))) return
     setSaving(true)
     try {
       const updated = await inspectionsApi.update(selectedInspection.id, { status: '검수완료', reviewNote })
@@ -126,9 +128,9 @@ export default function InspectionReview() {
         await buildingsApi.update(selectedBuilding.id, { status: '검수완료' })
         setBuildings(prev => prev.map(b => b.id === selectedBuilding.id ? { ...b, status: '검수완료' } : b))
       }
-      alert('최종 검수 완료 처리되었습니다.')
+      await showAlert('최종 검수 완료 처리되었습니다.')
     } catch (err) {
-      alert(err instanceof Error ? err.message : '처리 중 오류가 발생했습니다.')
+      await showAlert(err instanceof Error ? err.message : '처리 중 오류가 발생했습니다.')
     } finally {
       setSaving(false)
     }
@@ -136,7 +138,7 @@ export default function InspectionReview() {
 
   const handleReopenForReview = async () => {
     if (!selectedInspection) return
-    if (!window.confirm('최종 검수완료를 취소하고 재검수 상태로 되돌리시겠습니까?')) return
+    if (!(await showConfirm('최종 검수완료를 취소하고 재검수 상태로 되돌리시겠습니까?'))) return
     setSaving(true)
     try {
       const newStatus = deriveReviewStatus(uniqueEquipmentIds, selectedInspection.equipmentReviews)
@@ -147,7 +149,7 @@ export default function InspectionReview() {
         setBuildings(prev => prev.map(b => b.id === selectedBuilding.id ? { ...b, status: newStatus } : b))
       }
     } catch (err) {
-      alert(err instanceof Error ? err.message : '처리 중 오류가 발생했습니다.')
+      await showAlert(err instanceof Error ? err.message : '처리 중 오류가 발생했습니다.')
     } finally {
       setSaving(false)
     }
@@ -159,9 +161,9 @@ export default function InspectionReview() {
     try {
       const updated = await inspectionsApi.update(selectedInspection.id, { reviewNote })
       setInspections(prev => prev.map(i => i.id === updated.id ? updated : i))
-      alert('저장되었습니다.')
+      await showAlert('저장되었습니다.')
     } catch (err) {
-      alert(err instanceof Error ? err.message : '저장 중 오류가 발생했습니다.')
+      await showAlert(err instanceof Error ? err.message : '저장 중 오류가 발생했습니다.')
     } finally {
       setSaving(false)
     }

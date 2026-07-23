@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { FolderOpen, Upload, Download, Trash2 } from 'lucide-react'
 import { resourcesApi } from '../utils/api'
 import { useAuth } from '../context/AuthContext'
+import { useModal } from '../context/ModalContext'
 import { canManageResources } from '../utils/permissions'
 import type { ResourceFile } from '../types'
 
@@ -13,6 +14,7 @@ function formatBytes(bytes: number): string {
 
 export default function ResourceLibrary() {
   const { user } = useAuth()
+  const { alert: showAlert, confirm: showConfirm } = useModal()
   const canManage = canManageResources(user?.role)
   const [files, setFiles] = useState<ResourceFile[]>([])
   const [uploading, setUploading] = useState(false)
@@ -32,7 +34,7 @@ export default function ResourceLibrary() {
       const created = await resourcesApi.upload(file)
       setFiles(prev => [created, ...prev])
     } catch (err) {
-      alert(err instanceof Error ? err.message : '업로드 중 오류가 발생했습니다.')
+      await showAlert(err instanceof Error ? err.message : '업로드 중 오류가 발생했습니다.')
     } finally {
       setUploading(false)
     }
@@ -40,17 +42,17 @@ export default function ResourceLibrary() {
 
   const handleDownload = (file: ResourceFile) => {
     resourcesApi.download(file).catch(err => {
-      alert(err instanceof Error ? err.message : '다운로드 중 오류가 발생했습니다.')
+      showAlert(err instanceof Error ? err.message : '다운로드 중 오류가 발생했습니다.')
     })
   }
 
   const handleDelete = async (file: ResourceFile) => {
-    if (!window.confirm(`"${file.filename}" 파일을 삭제하시겠습니까?`)) return
+    if (!(await showConfirm(`"${file.filename}" 파일을 삭제하시겠습니까?`))) return
     try {
       await resourcesApi.delete(file.id)
       setFiles(prev => prev.filter(f => f.id !== file.id))
     } catch (err) {
-      alert(err instanceof Error ? err.message : '삭제 중 오류가 발생했습니다.')
+      await showAlert(err instanceof Error ? err.message : '삭제 중 오류가 발생했습니다.')
     }
   }
 

@@ -3,6 +3,7 @@ import { Plus, Pencil, Trash2, X, HardHat } from 'lucide-react'
 import { techniciansApi } from '../utils/api'
 import { formatPhone } from '../utils/phone'
 import { useAuth } from '../context/AuthContext'
+import { useModal } from '../context/ModalContext'
 import { canDelete } from '../utils/permissions'
 import type { Technician, TechnicianGrade } from '../types'
 
@@ -21,6 +22,7 @@ const emptyForm = (): Omit<Technician, 'id' | 'createdAt'> => ({
 
 export default function TechnicianManagement() {
   const { user } = useAuth()
+  const { alert: showAlert, confirm: showConfirm } = useModal()
   const [technicians, setTechnicians] = useState<Technician[]>([])
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<Technician | null>(null)
@@ -58,19 +60,19 @@ export default function TechnicianManagement() {
       }
       closeForm()
     } catch (err) {
-      alert(err instanceof Error ? err.message : '저장 중 오류가 발생했습니다.')
+      await showAlert(err instanceof Error ? err.message : '저장 중 오류가 발생했습니다.')
     } finally {
       setSaving(false)
     }
   }
 
   const handleDelete = async (t: Technician) => {
-    if (!window.confirm(`"${t.name}" 기술자를 삭제하시겠습니까?`)) return
+    if (!(await showConfirm(`"${t.name}" 기술자를 삭제하시겠습니까?`))) return
     try {
       await techniciansApi.delete(t.id)
       setTechnicians(prev => prev.filter(x => x.id !== t.id))
     } catch (err) {
-      alert(err instanceof Error ? err.message : '삭제 중 오류가 발생했습니다.')
+      await showAlert(err instanceof Error ? err.message : '삭제 중 오류가 발생했습니다.')
     }
   }
 

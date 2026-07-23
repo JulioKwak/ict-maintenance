@@ -3,6 +3,7 @@ import { Plus, Pencil, Trash2, X, Users } from 'lucide-react'
 import { usersApi } from '../utils/api'
 import { formatPhone } from '../utils/phone'
 import { useAuth } from '../context/AuthContext'
+import { useModal } from '../context/ModalContext'
 import { canDelete } from '../utils/permissions'
 import type { User, UserRole } from '../types'
 
@@ -23,6 +24,7 @@ const emptyForm = (): FormState => ({ username: '', name: '', phone: '', email: 
 
 export default function UserManagement() {
   const { user: currentUser } = useAuth()
+  const { alert: showAlert, confirm: showConfirm } = useModal()
   const [users, setUsers] = useState<User[]>([])
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<User | null>(null)
@@ -52,7 +54,7 @@ export default function UserManagement() {
         })
         setUsers(prev => prev.map(u => u.id === editing.id ? updated : u))
       } else {
-        if (!form.password) { alert('비밀번호를 입력하세요.'); return }
+        if (!form.password) { await showAlert('비밀번호를 입력하세요.'); return }
         const created = await usersApi.create({
           username: form.username, name: form.name, phone: form.phone,
           email: form.email, role: form.role, password: form.password,
@@ -61,20 +63,20 @@ export default function UserManagement() {
       }
       closeForm()
     } catch (err) {
-      alert(err instanceof Error ? err.message : '저장 중 오류가 발생했습니다.')
+      await showAlert(err instanceof Error ? err.message : '저장 중 오류가 발생했습니다.')
     } finally {
       setSaving(false)
     }
   }
 
   const handleDelete = async (u: User) => {
-    if (u.id === currentUser?.id) { alert('현재 로그인 중인 계정은 삭제할 수 없습니다.'); return }
-    if (!window.confirm(`"${u.name}" 사용자를 삭제하시겠습니까?`)) return
+    if (u.id === currentUser?.id) { await showAlert('현재 로그인 중인 계정은 삭제할 수 없습니다.'); return }
+    if (!(await showConfirm(`"${u.name}" 사용자를 삭제하시겠습니까?`))) return
     try {
       await usersApi.delete(u.id)
       setUsers(prev => prev.filter(x => x.id !== u.id))
     } catch (err) {
-      alert(err instanceof Error ? err.message : '삭제 중 오류가 발생했습니다.')
+      await showAlert(err instanceof Error ? err.message : '삭제 중 오류가 발생했습니다.')
     }
   }
 

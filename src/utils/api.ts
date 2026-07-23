@@ -193,20 +193,27 @@ export const companyApi = {
     request<CompanyInfo>('/company', { method: 'PUT', body: JSON.stringify(data) }),
 }
 
-// ─── Geocoding (네이버 지도 주소 검색) ──────────────────────────────────────────
+// ─── Local Search (네이버 지역 검색 - 건물명/부분 주소로 후보 검색) ──────────────────
 
-export interface NaverAddress {
+export interface LocalSearchItem {
+  title: string
+  category: string
+  address: string
   roadAddress: string
-  jibunAddress: string
-  englishAddress: string
-  x: string
-  y: string
+  mapx: string
+  mapy: string
 }
 
-export const geocodeApi = {
-  search: (query: string) =>
-    request<{ addresses: NaverAddress[] }>(`/geocode?query=${encodeURIComponent(query)}`)
-      .then(res => res.addresses),
+export interface LocalSearchResult {
+  items: LocalSearchItem[]
+  total: number
+  page: number
+  totalPages: number
+}
+
+export const localSearchApi = {
+  search: (query: string, page: number = 1) =>
+    request<LocalSearchResult>(`/local-search?query=${encodeURIComponent(query)}&page=${page}`),
 }
 
 // ─── Inspections ──────────────────────────────────────────────────────────────

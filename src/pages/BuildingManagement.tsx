@@ -10,6 +10,7 @@ import PasswordConfirmModal from '../components/PasswordConfirmModal'
 import EquipmentSelector from '../components/EquipmentSelector'
 import AssignInspectorsModal from '../components/AssignInspectorsModal'
 import { useAuth } from '../context/AuthContext'
+import { useModal } from '../context/ModalContext'
 import { canDelete } from '../utils/permissions'
 import { INSPECTION_STATUS_STYLE } from '../utils/inspectionStatus'
 import { format } from 'date-fns'
@@ -27,6 +28,7 @@ const STATUS_COLORS: Record<BuildingStatus, string> = {
 export default function BuildingManagement() {
   const navigate = useNavigate()
   const { user } = useAuth()
+  const { alert: showAlert } = useModal()
   const [buildings, setBuildings] = useState<Building[]>([])
   const [allInspections, setAllInspections] = useState<InspectionForm[]>([])
   const [technicians, setTechnicians] = useState<Technician[]>([])
@@ -157,7 +159,7 @@ export default function BuildingManagement() {
       setBuildings(prev => prev.map(b => (b.id === building.id ? updated : b)))
       setShowBuildingEdit(false)
     } catch (err) {
-      alert(err instanceof Error ? err.message : '건축물 수정 중 오류가 발생했습니다.')
+      await showAlert(err instanceof Error ? err.message : '건축물 수정 중 오류가 발생했습니다.')
     } finally {
       setSavingBuildingEdit(false)
     }
@@ -209,7 +211,7 @@ export default function BuildingManagement() {
       setBuildings(prev => prev.map(b => (b.id === building.id ? updated : b)))
       setEditingEquipment(false)
     } catch (err) {
-      alert(err instanceof Error ? err.message : '설비 수정 중 오류가 발생했습니다.')
+      await showAlert(err instanceof Error ? err.message : '설비 수정 중 오류가 발생했습니다.')
     } finally {
       setSavingEquipment(false)
     }
@@ -266,7 +268,7 @@ export default function BuildingManagement() {
       setBuildings(prev => prev.map(b => (b.id === building.id ? updated : b)))
       setShowEstimateEdit(false)
     } catch (err) {
-      alert(err instanceof Error ? err.message : '견적서 수정 중 오류가 발생했습니다.')
+      await showAlert(err instanceof Error ? err.message : '견적서 수정 중 오류가 발생했습니다.')
     } finally {
       setSavingEstimate(false)
     }
@@ -296,7 +298,7 @@ export default function BuildingManagement() {
       await downloadEstimateXlsx(building, company, estimateExportForm.recipient, issueDate)
       setShowEstimateExport(false)
     } catch (err) {
-      alert(err instanceof Error ? err.message : '견적서 다운로드 중 오류가 발생했습니다.')
+      await showAlert(err instanceof Error ? err.message : '견적서 다운로드 중 오류가 발생했습니다.')
     } finally {
       setExportingEstimate(false)
     }

@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
+import { ModalProvider } from './context/ModalContext'
 import { canAccessPath, homePathForRole } from './utils/permissions'
 import Layout from './components/Layout'
 import Login from './pages/Login'
@@ -52,9 +53,11 @@ function AppRoutes() {
 export default function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <AppRoutes />
-      </AuthProvider>
+      <ModalProvider>
+        <AuthProvider>
+          <AppRoutes />
+        </AuthProvider>
+      </ModalProvider>
     </BrowserRouter>
   )
 }

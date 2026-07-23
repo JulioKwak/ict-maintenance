@@ -5,6 +5,7 @@ import { formatPhone } from '../utils/phone'
 import { useAuth } from '../context/AuthContext'
 import { canEditSystemSettings } from '../utils/permissions'
 import AddressSearchModal from '../components/AddressSearchModal'
+import { useModal } from '../context/ModalContext'
 import type { CompanyInfo } from '../types'
 
 const emptyForm = (): CompanyInfo => ({
@@ -13,6 +14,7 @@ const emptyForm = (): CompanyInfo => ({
 
 export default function CompanyManagement() {
   const { user } = useAuth()
+  const { alert: showAlert } = useModal()
   const canEdit = canEditSystemSettings(user?.role)
   const [form, setForm] = useState<CompanyInfo>(emptyForm())
   const [saving, setSaving] = useState(false)
@@ -28,9 +30,9 @@ export default function CompanyManagement() {
     try {
       const updated = await companyApi.update(form)
       setForm(updated)
-      alert('저장되었습니다.')
+      await showAlert('저장되었습니다.')
     } catch (err) {
-      alert(err instanceof Error ? err.message : '저장 중 오류가 발생했습니다.')
+      await showAlert(err instanceof Error ? err.message : '저장 중 오류가 발생했습니다.')
     } finally {
       setSaving(false)
     }

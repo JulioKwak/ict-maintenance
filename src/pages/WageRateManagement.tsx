@@ -2,6 +2,7 @@ import { useState, useEffect, type FormEvent } from 'react'
 import { Plus, Pencil, Trash2, X, Banknote } from 'lucide-react'
 import { wageRatesApi } from '../utils/api'
 import { useAuth } from '../context/AuthContext'
+import { useModal } from '../context/ModalContext'
 import { canDelete, canEditSystemSettings } from '../utils/permissions'
 import type { WageRateSet, TechnicianGrade } from '../types'
 
@@ -12,6 +13,7 @@ const emptyRates = (): Record<TechnicianGrade, string> =>
 
 export default function WageRateManagement() {
   const { user } = useAuth()
+  const { alert: showAlert, confirm: showConfirm } = useModal()
   const canEdit = canEditSystemSettings(user?.role)
   const [wageRateSets, setWageRateSets] = useState<WageRateSet[]>([])
   const [showForm, setShowForm] = useState(false)
@@ -46,9 +48,9 @@ export default function WageRateManagement() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     const year = Number(formYear)
-    if (!year) { alert('연도를 입력하세요.'); return }
+    if (!year) { await showAlert('연도를 입력하세요.'); return }
     if (editingYear === null && wageRateSets.some(s => s.year === year)) {
-      alert('이미 등록된 연도입니다.')
+      await showAlert('이미 등록된 연도입니다.')
       return
     }
     const rates = Object.fromEntries(GRADES.map(g => [g, Number(formRates[g]) || 0])) as Record<TechnicianGrade, number>
@@ -59,19 +61,19 @@ export default function WageRateManagement() {
       setWageRateSets(prev => [...prev.filter(s => s.year !== year), updated].sort((a, b) => b.year - a.year))
       closeForm()
     } catch (err) {
-      alert(err instanceof Error ? err.message : '저장 중 오류가 발생했습니다.')
+      await showAlert(err instanceof Error ? err.message : '저장 중 오류가 발생했습니다.')
     } finally {
       setSaving(false)
     }
   }
 
   const handleDelete = async (year: number) => {
-    if (!window.confirm(`${year}년 노임단가를 삭제하시겠습니까?`)) return
+    if (!(await showConfirm(`${year}년 노임단가를 삭제하시겠습니까?`))) return
     try {
       await wageRatesApi.delete(year)
       setWageRateSets(prev => prev.filter(s => s.year !== year))
     } catch (err) {
-      alert(err instanceof Error ? err.message : '삭제 중 오류가 발생했습니다.')
+      await showAlert(err instanceof Error ? err.message : '삭제 중 오류가 발생했습니다.')
     }
   }
 

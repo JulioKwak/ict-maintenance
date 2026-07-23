@@ -17,7 +17,7 @@ const CATEGORY_LABELS: Record<EquipmentCategory, string> = {
 }
 
 const DETAIL_DATA_START_ROW = 21
-const DETAIL_TEMPLATE_ROWS = 18
+const DETAIL_TEMPLATE_ROWS = 4 // 샘플 양식엔 통신/방송/정보/기타 각 1건씩 예시 행만 있음(21~24행), 25행이 합계
 
 function getCheckedItems(building: Building): CheckedItem[] {
   return building.equipment
@@ -130,10 +130,10 @@ function fillDetailSheet(
     .map(category => ({ category, items: items.filter(it => it.equipment.category === category) }))
     .filter(g => g.items.length > 0)
   const totalCount = grouped.reduce((n, g) => n + g.items.length, 0)
-  const originalTotalRow = DETAIL_DATA_START_ROW + DETAIL_TEMPLATE_ROWS // 원본 템플릿의 "전체" 합계 행(39)
+const originalTotalRow = DETAIL_DATA_START_ROW + DETAIL_TEMPLATE_ROWS // 원본 템플릿의 "전체" 합계 행(25) — 통신/방송/정보/기타 각 1건 예시(21~24) 다음 행
 
   // exceljs는 duplicateRow/spliceRows로 행 수를 바꿔도 병합 범위를 따라가지 않고 원래 좌표에 그대로 남겨둔다.
-  // 병합된 채로 행을 복제/삭제하면 값이 인접 셀에 그대로 복사되거나(예: B38:E38 → 새 행에 텍스트가 4칸 다 채워짐)
+  // 병합된 채로 행을 복제/삭제하면 값이 인접 셀에 그대로 복사되거나(예: B24:E24 → 새 행에 텍스트가 4칸 다 채워짐)
   // 옛 병합 좌표가 새 데이터 행과 겹쳐 재병합이 조용히 실패하는 문제가 생기므로, 리사이즈 전에 관련 병합을 모두 해제한다.
   // (unMergeCells는 마스터가 아닌 셀의 채우기색 등 스타일도 초기화해버리므로, 리사이즈 후 되돌릴 수 있게 스타일을 미리 캡처해둔다.)
   const categoryLabelStyle = { ...ws.getCell(`A${DETAIL_DATA_START_ROW}`).style }
@@ -150,9 +150,8 @@ function fillDetailSheet(
     H: { ...ws.getCell(`H${originalTotalRow}`).style },
   }
 
-  safeUnmerge(ws, 'A21:A28')
-  safeUnmerge(ws, 'A30:A36')
-  safeUnmerge(ws, 'A37:A38')
+  // 샘플 양식은 통신/방송/정보/기타 각 1행씩만 예시로 담고 있어 카테고리별 세로 병합이 애초에 없다.
+  // (실제 데이터에서 한 카테고리가 여러 건이면 아래 쓰기 루프에서 그때그때 병합을 새로 건다.)
   for (let r = DETAIL_DATA_START_ROW; r < originalTotalRow; r += 1) safeUnmerge(ws, `B${r}:E${r}`)
   safeUnmerge(ws, `B${originalTotalRow}:F${originalTotalRow}`)
 
@@ -206,14 +205,16 @@ function fillDetailSheet(
   totalH.style = totalRowStyle.H
   safeMerge(ws, `B${totalRow}:F${totalRow}`)
 
-  // 체크된 설비가 템플릿 기본 18행보다 적을 때 남는 뒷부분(옛 데이터 행 + 옛 합계 행 자리)을 비운다.
-  // 주의: cell.fill = {...}는 shared style 객체를 직접 변형해 같은 서식을 공유하는 다른 셀
-  // (예: 헤더 행)까지 오염시킬 수 있으므로, cell.style 전체를 새 객체로 교체하는 방식으로 처리한다.
+  // 체크된 설비가 템플릿 기본 4행(카테고리당 예시 1건)보다 적을 때 남는 뒷부분(옛 데이터 행 + 옛 합계 행 자리)은
+  // 테두리·채우기색·글자까지 전부 없는 완전히 빈 셀이어야 한다.
+  // 주의: cell.fill = {...}/cell.border = {...}는 shared style 객체를 직접 변형해 같은 서식을 공유하는
+  // 다른 셀(예: 헤더 행)까지 오염시킬 수 있으므로, cell.style 전체를 새 객체로 교체하는 방식으로 처리한다.
   for (let r = totalRow + 1; r <= originalTotalRow; r += 1) {
-    const blankCells = [ws.getCell(`A${r}`), ws.getCell(`B${r}`), ws.getCell(`F${r}`), ws.getCell(`G${r}`), ws.getCell(`H${r}`)]
-    blankCells.forEach(cell => { cell.value = null })
-    const aCell = ws.getCell(`A${r}`)
-    aCell.style = { ...aCell.style, fill: { type: 'pattern', pattern: 'none' } }
+    ['A', 'B', 'F', 'G', 'H'].forEach(col => {
+      const cell = ws.getCell(`${col}${r}`)
+      cell.value = null
+      cell.style = { ...cell.style, fill: { type: 'pattern', pattern: 'none' }, border: {} }
+    })
   }
 }
 

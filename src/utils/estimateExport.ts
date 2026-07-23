@@ -216,6 +216,11 @@ const originalTotalRow = DETAIL_DATA_START_ROW + DETAIL_TEMPLATE_ROWS // 원본 
       cell.style = { ...cell.style, fill: { type: 'pattern', pattern: 'none' }, border: {} }
     })
   }
+
+  // 인쇄 영역이 템플릿 기본값(A1:H26, 합계 행 다음 한 줄까지)으로 고정돼 있어, 표가
+  // 그보다 늘어나면 뒷부분이 인쇄/미리보기 레이아웃 밖으로 잘려나간다. 실제 합계 행
+  // 위치에 맞춰 매번 다시 계산한다.
+  ws.pageSetup.printArea = `A1:H${totalRow + 1}`
 }
 
 export async function buildEstimateWorkbook(

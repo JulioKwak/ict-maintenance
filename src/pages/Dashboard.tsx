@@ -19,6 +19,13 @@ const STATUS_COLORS: Record<BuildingStatus, string> = {
 
 const GRADES: TechnicianGrade[] = ['특급기술자', '고급기술자', '중급기술자', '초급기술자']
 
+const GRADE_COLORS: Record<TechnicianGrade, string> = {
+  특급기술자: 'bg-yellow-100 text-yellow-800',
+  고급기술자: 'bg-blue-100 text-blue-800',
+  중급기술자: 'bg-green-100 text-green-800',
+  초급기술자: 'bg-gray-100 text-gray-700',
+}
+
 export default function Dashboard() {
   const [buildings, setBuildings] = useState<Building[]>([])
   const [technicians, setTechnicians] = useState<Technician[]>([])
@@ -96,7 +103,7 @@ export default function Dashboard() {
             <div className="space-y-2">
               {GRADES.map(grade => (
                 <div key={grade} className="flex items-center justify-between py-1.5" style={{ borderBottom: '1px solid #f0f0f0' }}>
-                  <span className="text-sm" style={{ color: '#333333' }}>{grade}</span>
+                  <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${GRADE_COLORS[grade]}`}>{grade}</span>
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold" style={{ color: '#1d1d1f' }}>{gradeCounts[grade] || 0}명</span>
                     <button
@@ -122,7 +129,7 @@ export default function Dashboard() {
             <div className="flex items-center justify-between p-5" style={{ borderBottom: '1px solid #f0f0f0' }}>
               <div className="flex items-center gap-2">
                 <HardHat size={16} style={{ color: '#0066cc' }} />
-                <h3 className="font-semibold" style={{ color: '#1d1d1f', fontSize: '15px' }}>{gradePopup}</h3>
+                <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${GRADE_COLORS[gradePopup]}`}>{gradePopup}</span>
                 <span className="text-sm" style={{ color: '#7a7a7a' }}>{popupTechnicians.length}명</span>
               </div>
               <button onClick={() => setGradePopup(null)} style={{ color: '#7a7a7a' }}><X size={20} /></button>

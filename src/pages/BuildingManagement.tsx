@@ -28,7 +28,7 @@ const STATUS_COLORS: Record<BuildingStatus, string> = {
 export default function BuildingManagement() {
   const navigate = useNavigate()
   const { user } = useAuth()
-  const { alert: showAlert } = useModal()
+  const { alert: showAlert, confirm: showConfirm } = useModal()
   const [buildings, setBuildings] = useState<Building[]>([])
   const [allInspections, setAllInspections] = useState<InspectionForm[]>([])
   const [technicians, setTechnicians] = useState<Technician[]>([])
@@ -83,6 +83,7 @@ export default function BuildingManagement() {
   // 좌표 없는 기존 건축물 일괄 백필 (관리자 전용 임시 유틸리티)
   const [backfilling, setBackfilling] = useState(false)
   const handleBackfillGeo = async () => {
+    if (!(await showConfirm('좌표 없는 모든 건축물 주소를 다시 지오코딩합니다. 계속할까요?'))) return
     setBackfilling(true)
     try {
       const result = await adminApi.backfillGeo()

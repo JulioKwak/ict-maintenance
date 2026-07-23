@@ -83,6 +83,9 @@ export interface Building {
   companyName: string
   name: string
   address: string
+  latitude?: number
+  longitude?: number
+  sido?: string
   floorArea: number
   technicianGrade: TechnicianGrade
   wageRate: number

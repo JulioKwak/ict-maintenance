@@ -14,7 +14,7 @@ import { buildingsApi, techniciansApi, wageRatesApi } from '../utils/api'
 import { onlyDigits, toMoneyDisplay } from '../utils/money'
 import type { Building, Technician, TechnicianGrade, WageRateSet } from '../types'
 import EquipmentSelector from '../components/EquipmentSelector'
-import AddressSearchModal from '../components/AddressSearchModal'
+import AddressSearchModal, { type AddressSelection } from '../components/AddressSearchModal'
 import { useModal } from '../context/ModalContext'
 
 export default function BuildingRegister() {
@@ -32,7 +32,17 @@ export default function BuildingRegister() {
   const [companyName, setCompanyName] = useState('')
   const [name, setName] = useState('')
   const [address, setAddress] = useState('')
+  const [latitude, setLatitude] = useState<number | null>(null)
+  const [longitude, setLongitude] = useState<number | null>(null)
+  const [sido, setSido] = useState('')
   const [showAddressSearch, setShowAddressSearch] = useState(false)
+
+  const handleAddressSelect = (sel: AddressSelection) => {
+    setAddress(sel.address)
+    setLatitude(sel.latitude)
+    setLongitude(sel.longitude)
+    setSido(sel.sido)
+  }
   const [floorArea, setFloorArea] = useState('')
   const [floorAreaError, setFloorAreaError] = useState('')
   const [assignedTechnicianId, setAssignedTechnicianId] = useState('')
@@ -110,6 +120,9 @@ export default function BuildingRegister() {
       companyName,
       name,
       address,
+      latitude: latitude ?? undefined,
+      longitude: longitude ?? undefined,
+      sido: sido || undefined,
       floorArea: area,
       technicianGrade: techGrade as TechnicianGrade,
       wageRate,
@@ -221,9 +234,10 @@ export default function BuildingRegister() {
               <input
                 type="text"
                 value={address}
-                onChange={e => setAddress(e.target.value)}
-                className="input-field flex-1"
-                placeholder="건축물 주소를 입력하세요"
+                readOnly
+                onClick={() => setShowAddressSearch(true)}
+                className="input-field flex-1 cursor-pointer"
+                placeholder="주소 검색 버튼으로 입력하세요"
                 required
               />
               <button
@@ -374,7 +388,7 @@ export default function BuildingRegister() {
     <AddressSearchModal
       isOpen={showAddressSearch}
       onClose={() => setShowAddressSearch(false)}
-      onSelect={setAddress}
+      onSelect={handleAddressSelect}
     />
     </>
   )

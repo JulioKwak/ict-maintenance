@@ -9,6 +9,9 @@ function rowToBuilding(r: Row) {
     companyName: r.company_name ?? '',
     name: r.name,
     address: r.address,
+    latitude: r.latitude ?? undefined,
+    longitude: r.longitude ?? undefined,
+    sido: r.sido ?? undefined,
     floorArea: r.floor_area,
     technicianGrade: r.technician_grade,
     wageRate: r.wage_rate,
@@ -55,7 +58,7 @@ export const onRequestPut: PagesFunction<Env, string, Data> = async ({ request, 
 
   await env.DB.prepare(`
     UPDATE buildings SET
-      company_name=?, name=?, address=?, floor_area=?, technician_grade=?, wage_rate=?, adjustment_factor=?,
+      company_name=?, name=?, address=?, latitude=?, longitude=?, sido=?, floor_area=?, technician_grade=?, wage_rate=?, adjustment_factor=?,
       assigned_technician_id=?, equipment_json=?,
       direct_cost_travel=?, direct_cost_vehicle=?, direct_cost_field_expense=?,
       overhead_rate=?, tech_fee_rate=?, discount_rate=?,
@@ -64,7 +67,11 @@ export const onRequestPut: PagesFunction<Env, string, Data> = async ({ request, 
     WHERE id=?
   `).bind(
     b.companyName ?? row.company_name ?? '',
-    b.name ?? row.name, b.address ?? row.address, b.floorArea ?? row.floor_area,
+    b.name ?? row.name, b.address ?? row.address,
+    (b.latitude as number) ?? row.latitude ?? null,
+    (b.longitude as number) ?? row.longitude ?? null,
+    (b.sido as string) || row.sido || null,
+    b.floorArea ?? row.floor_area,
     b.technicianGrade ?? row.technician_grade, b.wageRate ?? row.wage_rate,
     b.adjustmentFactor ?? row.adjustment_factor,
     b.assignedTechnicianId !== undefined ? ((b.assignedTechnicianId as string) || null) : row.assigned_technician_id,

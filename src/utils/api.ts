@@ -172,6 +172,16 @@ export const buildingsApi = {
     request<void>(`/buildings/${id}`, { method: 'DELETE' }),
 }
 
+// ─── Admin utilities ──────────────────────────────────────────────────────────
+
+export const adminApi = {
+  // 위경도/시도 없이 저장된 기존 건축물 주소를 일괄 지오코딩해서 채운다.
+  backfillGeo: () =>
+    request<{ total: number; updated: number; failed: { id: string; address: string }[] }>(
+      '/admin/backfill-geo', { method: 'POST' }
+    ),
+}
+
 // ─── Wage rates ───────────────────────────────────────────────────────────────
 
 export const wageRatesApi = {
@@ -200,6 +210,9 @@ export interface AddressCandidate {
   category: string
   address: string
   roadAddress: string
+  latitude: number | null
+  longitude: number | null
+  sido: string
 }
 
 export interface AddressSearchResult {

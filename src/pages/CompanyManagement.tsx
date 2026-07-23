@@ -122,7 +122,7 @@ export default function CompanyManagement() {
       <AddressSearchModal
         isOpen={showAddressSearch}
         onClose={() => setShowAddressSearch(false)}
-        onSelect={addr => setForm(f => ({ ...f, address: addr }))}
+        onSelect={sel => setForm(f => ({ ...f, address: sel.address }))}
       />
     </div>
   )

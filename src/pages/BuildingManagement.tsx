@@ -1,10 +1,10 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Building2, Search, ChevronRight, Trash2, Download, ClipboardCheck, Plus, FileText, X, ClipboardList, Pencil } from 'lucide-react'
-import { buildingsApi, inspectionsApi, techniciansApi, wageRatesApi, companyApi } from '../utils/api'
+import { buildingsApi, inspectionsApi, techniciansApi, wageRatesApi, companyApi, adminApi } from '../utils/api'
 import { EQUIPMENT_LIST, CATEGORY_COLORS, calcDirectLaborCost, calcCostBreakdown, countCheckedInspections, getTechnicianGrade, getAdjustmentFactor, meetsGradeRequirement, resolveWageRates } from '../data/equipment'
 import { onlyDigits, toMoneyDisplay } from '../utils/money'
-import AddressSearchModal from '../components/AddressSearchModal'
+import AddressSearchModal, { type AddressSelection } from '../components/AddressSearchModal'
 import type { Building, BuildingStatus, Equipment, EquipmentCategory, InspectionForm, InspectionType, Technician, TechnicianGrade, WageRateSet } from '../types'
 import PasswordConfirmModal from '../components/PasswordConfirmModal'
 import EquipmentSelector from '../components/EquipmentSelector'
@@ -76,8 +76,24 @@ export default function BuildingManagement() {
   const [showAddressSearchEdit, setShowAddressSearchEdit] = useState(false)
   const [buildingEditForm, setBuildingEditForm] = useState({
     companyName: '', name: '', address: '', floorArea: '', assignedTechnicianId: '',
+    latitude: null as number | null, longitude: null as number | null, sido: '',
   })
   const [savingBuildingEdit, setSavingBuildingEdit] = useState(false)
+
+  // 좌표 없는 기존 건축물 일괄 백필 (관리자 전용 임시 유틸리티)
+  const [backfilling, setBackfilling] = useState(false)
+  const handleBackfillGeo = async () => {
+    setBackfilling(true)
+    try {
+      const result = await adminApi.backfillGeo()
+      await showAlert(`총 ${result.total}건 중 ${result.updated}건 좌표를 채웠습니다. (실패 ${result.failed.length}건)`)
+      if (result.updated > 0) buildingsApi.getAll().then(setBuildings).catch(() => {})
+    } catch (err) {
+      await showAlert(err instanceof Error ? err.message : '백필 중 오류가 발생했습니다.')
+    } finally {
+      setBackfilling(false)
+    }
+  }
 
   useEffect(() => {
     buildingsApi.getAll().then(setBuildings).catch(() => {})
@@ -126,8 +142,15 @@ export default function BuildingManagement() {
       address: building.address,
       floorArea: String(building.floorArea),
       assignedTechnicianId: building.assignedTechnicianId ?? '',
+      latitude: building.latitude ?? null,
+      longitude: building.longitude ?? null,
+      sido: building.sido ?? '',
     })
     setShowBuildingEdit(true)
+  }
+
+  const handleEditAddressSelect = (sel: AddressSelection) => {
+    setBuildingEditForm(f => ({ ...f, address: sel.address, latitude: sel.latitude, longitude: sel.longitude, sido: sel.sido }))
   }
 
   const handleSaveBuildingEdit = async (building: Building) => {
@@ -149,6 +172,9 @@ export default function BuildingManagement() {
         companyName: buildingEditForm.companyName,
         name: buildingEditForm.name,
         address: buildingEditForm.address,
+        latitude: buildingEditForm.latitude ?? undefined,
+        longitude: buildingEditForm.longitude ?? undefined,
+        sido: buildingEditForm.sido || undefined,
         floorArea: editArea,
         technicianGrade: editTechGrade as TechnicianGrade,
         wageRate: editWageRate,
@@ -320,6 +346,17 @@ export default function BuildingManagement() {
             </button>
           </div>
 
+          {canDelete(user?.role) && (
+            <button
+              onClick={handleBackfillGeo}
+              disabled={backfilling}
+              className="text-xs text-left disabled:opacity-60"
+              style={{ color: '#7a7a7a' }}
+            >
+              {backfilling ? '좌표 백필 중...' : '기존 건축물 좌표 일괄 백필 (관리자 전용, 1회성)'}
+            </button>
+          )}
+
           <div className="flex flex-wrap gap-1">
             {(['전체', '등록', '작성중', '작성완료', '점검표보완', '검수중', '검수완료'] as const).map(s => (
               <button key={s} onClick={() => setStatusFilter(s)}
@@ -470,9 +507,10 @@ export default function BuildingManagement() {
                           <input
                             type="text"
                             value={buildingEditForm.address}
-                            onChange={e => setBuildingEditForm(f => ({ ...f, address: e.target.value }))}
-                            className="input-field"
-                            placeholder="건축물 주소를 입력하세요"
+                            readOnly
+                            onClick={() => setShowAddressSearchEdit(true)}
+                            className="input-field cursor-pointer"
+                            placeholder="주소 검색 버튼으로 입력하세요"
                             required
                           />
                           <button
@@ -555,7 +593,7 @@ export default function BuildingManagement() {
               <AddressSearchModal
                 isOpen={showAddressSearchEdit}
                 onClose={() => setShowAddressSearchEdit(false)}
-                onSelect={addr => setBuildingEditForm(f => ({ ...f, address: addr }))}
+                onSelect={handleEditAddressSelect}
               />
 
               {/* 등록 설비 */}

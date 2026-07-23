@@ -13,6 +13,9 @@ function rowToBuilding(r: Row) {
     companyName: r.company_name ?? '',
     name: r.name,
     address: r.address,
+    latitude: r.latitude ?? undefined,
+    longitude: r.longitude ?? undefined,
+    sido: r.sido ?? undefined,
     floorArea: r.floor_area,
     technicianGrade: r.technician_grade,
     wageRate: r.wage_rate,
@@ -57,16 +60,18 @@ export const onRequestPost: PagesFunction<Env, string, Data> = async ({ request,
 
   await env.DB.prepare(`
     INSERT INTO buildings (
-      id, company_name, name, address, floor_area, technician_grade, wage_rate, adjustment_factor,
+      id, company_name, name, address, latitude, longitude, sido, floor_area, technician_grade, wage_rate, adjustment_factor,
       assigned_technician_id, equipment_json,
       direct_cost_travel, direct_cost_vehicle, direct_cost_field_expense,
       overhead_rate, tech_fee_rate, discount_rate,
       maintenance_h1, maintenance_h2, performance_check,
       total_cost, status, created_at, updated_at
-    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
   `).bind(
     id,
-    b.companyName ?? '', b.name, b.address, b.floorArea, b.technicianGrade, b.wageRate, b.adjustmentFactor,
+    b.companyName ?? '', b.name, b.address,
+    (b.latitude as number) ?? null, (b.longitude as number) ?? null, (b.sido as string) || null,
+    b.floorArea, b.technicianGrade, b.wageRate, b.adjustmentFactor,
     (b.assignedTechnicianId as string) || null,
     JSON.stringify(b.equipment ?? []),
     directCost.travel ?? 0, directCost.vehicle ?? 0, directCost.fieldExpense ?? 0,

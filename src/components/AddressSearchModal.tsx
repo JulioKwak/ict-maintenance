@@ -2,10 +2,17 @@ import { useState, type FormEvent } from 'react'
 import { Search, X, Loader2, MapPin, ChevronLeft, ChevronRight } from 'lucide-react'
 import { addressSearchApi, type AddressCandidate } from '../utils/api'
 
+export interface AddressSelection {
+  address: string
+  latitude: number | null
+  longitude: number | null
+  sido: string
+}
+
 interface Props {
   isOpen: boolean
   onClose: () => void
-  onSelect: (address: string) => void
+  onSelect: (selection: AddressSelection) => void
 }
 
 export default function AddressSearchModal({ isOpen, onClose, onSelect }: Props) {
@@ -43,7 +50,12 @@ export default function AddressSearchModal({ isOpen, onClose, onSelect }: Props)
   }
 
   const handleSelect = (item: AddressCandidate) => {
-    onSelect(item.roadAddress || item.address)
+    onSelect({
+      address: item.roadAddress || item.address,
+      latitude: item.latitude,
+      longitude: item.longitude,
+      sido: item.sido,
+    })
     handleClose()
   }
 

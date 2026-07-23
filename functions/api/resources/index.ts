@@ -22,27 +22,29 @@ function rowToResource(r: Row) {
     filename: r.filename,
     size: r.size,
     contentType: r.content_type,
-    uploadedBy: r.uploaded_by,
+    uploadedBy: r.uploader_name ?? r.uploaded_by,
     createdAt: r.created_at,
   }
 }
 
-async function getUserRole(env: Env, username: string): Promise<string | null> {
-  const row = await env.DB.prepare('SELECT role FROM users WHERE username = ?').bind(username).first<{ role: string }>()
-  return row?.role ?? null
+async function getUser(env: Env, username: string): Promise<{ role: string; name: string } | null> {
+  const row = await env.DB.prepare('SELECT role, name FROM users WHERE username = ?').bind(username).first<{ role: string; name: string }>()
+  return row ?? null
 }
 
 export const onRequestGet: PagesFunction<Env, string, Data> = async ({ env }) => {
   const { results } = await env.DB.prepare(
-    'SELECT * FROM resource_files ORDER BY created_at DESC'
+    `SELECT rf.*, u.name AS uploader_name FROM resource_files rf
+     LEFT JOIN users u ON u.username = rf.uploaded_by
+     ORDER BY rf.created_at DESC`
   ).all<Row>()
 
   return Response.json(results.map(rowToResource))
 }
 
 export const onRequestPost: PagesFunction<Env, string, Data> = async ({ request, env, data }) => {
-  const role = await getUserRole(env, data.username ?? '')
-  if (role !== 'admin') {
+  const uploader = await getUser(env, data.username ?? '')
+  if (uploader?.role !== 'admin') {
     return Response.json({ error: '관리자만 파일을 업로드할 수 있습니다.' }, { status: 403 })
   }
 
@@ -64,6 +66,6 @@ export const onRequestPost: PagesFunction<Env, string, Data> = async ({ request,
 
   return Response.json({
     id, filename: file.name, size: file.size, contentType: file.type || 'application/octet-stream',
-    uploadedBy: data.username ?? '', createdAt: now,
+    uploadedBy: uploader.name, createdAt: now,
   }, { status: 201 })
 }

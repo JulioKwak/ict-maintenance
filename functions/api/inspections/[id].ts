@@ -35,9 +35,10 @@ export const onRequestPut: PagesFunction<Env, string, Data> = async ({ request, 
   if (!row) return Response.json({ error: '점검표를 찾을 수 없습니다.' }, { status: 404 })
 
   await env.DB.prepare(
-    `UPDATE inspection_forms SET items_json=?, status=?, review_note=?, equipment_reviews_json=?, assigned_inspectors_json=?, updated_at=? WHERE id=?`
+    `UPDATE inspection_forms SET items_json=?, inspection_date=?, status=?, review_note=?, equipment_reviews_json=?, assigned_inspectors_json=?, updated_at=? WHERE id=?`
   ).bind(
     JSON.stringify(b.items ?? JSON.parse(row.items_json || '[]')),
+    b.inspectionDate ?? row.inspection_date,
     b.status ?? row.status,
     b.reviewNote ?? row.review_note,
     JSON.stringify(b.equipmentReviews ?? JSON.parse(row.equipment_reviews_json || '{}')),

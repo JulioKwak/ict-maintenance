@@ -40,6 +40,11 @@ export default function EquipmentSelector({ checkedEquipment, equipmentQty, onCh
     setDraftQty(prev => ({ ...prev, [id]: Math.max(1, (prev[id] || 1) + delta) }))
   }
 
+  const setDraftQtyValue = (id: string, value: string) => {
+    const parsed = Math.max(1, Math.floor(Number(value)) || 1)
+    setDraftQty(prev => ({ ...prev, [id]: parsed }))
+  }
+
   const selectAllInCategory = (cat: EquipmentCategory) => {
     const ids = EQUIPMENT_LIST.filter(eq => eq.category === cat).map(eq => eq.id)
     setDraftChecked(prev => {
@@ -171,7 +176,14 @@ export default function EquipmentSelector({ checkedEquipment, equipmentQty, onCh
                       >
                         <Minus size={12} />
                       </button>
-                      <span className="text-sm font-medium w-8 text-center">{draftQty[eq.id] || 1}</span>
+                      <input
+                        type="number"
+                        min={1}
+                        value={draftQty[eq.id] || 1}
+                        onClick={e => e.stopPropagation()}
+                        onChange={e => setDraftQtyValue(eq.id, e.target.value)}
+                        className="qty-input text-sm font-medium w-12 text-center border border-gray-200 rounded"
+                      />
                       <button
                         type="button"
                         onClick={() => changeDraftQty(eq.id, 1)}

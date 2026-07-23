@@ -204,7 +204,7 @@ export default function Inspection() {
     try {
       let saved: InspectionForm
       if (formExistsInDb) {
-        saved = await inspectionsApi.update(form.id, { items: form.items, assignedInspectorIds: form.assignedInspectorIds })
+        saved = await inspectionsApi.update(form.id, { items: form.items, inspectionDate: form.inspectionDate, assignedInspectorIds: form.assignedInspectorIds })
       } else {
         saved = await inspectionsApi.create({
           buildingId: form.buildingId, inspectionType: form.inspectionType,
@@ -250,7 +250,7 @@ export default function Inspection() {
       let saved: InspectionForm
       if (formExistsInDb) {
         saved = await inspectionsApi.update(form.id, {
-          items: form.items, status: nextStatus, equipmentReviews: nextEquipmentReviews,
+          items: form.items, inspectionDate: form.inspectionDate, status: nextStatus, equipmentReviews: nextEquipmentReviews,
           assignedInspectorIds: form.assignedInspectorIds,
         })
       } else {
@@ -480,6 +480,8 @@ export default function Inspection() {
 
   if (!form || !selectedBuilding) return null
 
+  const formReadonly = form.status !== '작성중' && form.status !== '점검표보완'
+
   // 설비별 그룹
   const equipmentGroups: Record<string, InspectionItem[]> = {}
   for (const item of form.items) {
@@ -532,12 +534,25 @@ export default function Inspection() {
           <div className="flex items-start justify-between gap-2 mb-2">
             <div className="min-w-0">
               <h2 className="font-semibold text-gray-800 truncate">{selectedBuilding.name}</h2>
-              <p className="text-xs text-gray-500 mt-0.5">
-                [{form.inspectionType}] {form.inspectionDate}
-                {form.status !== '작성중' && (
-                  <span className={`ml-2 px-2 py-0.5 rounded text-xs ${INSPECTION_STATUS_STYLE[form.status]}`}>{form.status}</span>
+              <div className="flex items-center gap-1.5 text-xs text-gray-500 mt-0.5">
+                <span>[{form.inspectionType}]</span>
+                {formReadonly ? (
+                  <span>{form.inspectionDate}</span>
+                ) : (
+                  <input
+                    type="date"
+                    value={form.inspectionDate}
+                    onChange={e => {
+                      const value = e.target.value
+                      setForm(prev => prev ? { ...prev, inspectionDate: value } : prev)
+                    }}
+                    className="text-xs border border-gray-200 rounded px-1 py-0.5"
+                  />
                 )}
-              </p>
+                {form.status !== '작성중' && (
+                  <span className={`px-2 py-0.5 rounded text-xs ${INSPECTION_STATUS_STYLE[form.status]}`}>{form.status}</span>
+                )}
+              </div>
             </div>
             <button onClick={() => navigate(-1)} className="text-xs shrink-0 mt-0.5" style={{ color: '#7a7a7a' }}>
               ← 목록
@@ -657,8 +672,8 @@ function EquipmentInspectionPanel({
                 item.subCategory === '외관' ? 'bg-gray-100 text-gray-700' :
                 item.subCategory === '기능' ? 'bg-blue-50 text-blue-700' :
                 item.subCategory === '안전' ? 'bg-red-50 text-red-700' :
-                'bg-gray-50 text-gray-500'
-              }`}>{item.subCategory}</span>
+                'bg-purple-50 text-purple-700'
+              }`}>{item.subCategory === '-' ? '성능' : item.subCategory}</span>
               {item.range !== '-' && (
                 <span className="text-xs px-2 py-0.5 rounded bg-purple-50 text-purple-700">{item.range}</span>
               )}
@@ -696,7 +711,6 @@ function EquipmentInspectionPanel({
                   locIdx={locIdx}
                   item={item}
                   building={building}
-                  form={form}
                   onUpdate={onUpdateLocation}
                   onRemove={onRemoveLocation}
                   canRemove={item.locations.length > 1}
@@ -726,7 +740,6 @@ function LocationRow({
   locIdx,
   item,
   building,
-  form,
   onUpdate,
   onRemove,
   canRemove,
@@ -736,7 +749,6 @@ function LocationRow({
   locIdx: number
   item: InspectionItem
   building: Building
-  form: InspectionForm
   onUpdate: (itemId: string, locId: string, field: keyof InspectionLocation, value: string | InspectionPhoto[]) => void
   onRemove: (itemId: string, locId: string) => void
   canRemove: boolean
@@ -773,8 +785,8 @@ function LocationRow({
           const lines = [
             `건축물명: ${building.name} (${building.address})`,
             `설비분류: ${eq?.category ?? ''} (${eq?.name ?? ''})`,
-            `점검항목: ${item.subCategory} | ${item.content}`,
-            `점검세부위치: ${loc.location || ''} (${form.inspectionDate})`,
+            `점검항목: ${item.subCategory === '-' ? '성능' : item.subCategory} | ${item.content}`,
+            `점검세부위치: ${loc.location || ''}`,
             loc.opinion
               ? `점검결과: ${loc.result || '-'} (${loc.opinion})`
               : `점검결과: ${loc.result || '-'}`,

@@ -456,8 +456,9 @@ function EquipmentReviewDetail({
                   <span className={`text-xs px-1.5 py-0.5 rounded ${
                     item.subCategory === '외관' ? 'bg-gray-200 text-gray-700' :
                     item.subCategory === '기능' ? 'bg-blue-100 text-blue-700' :
-                    'bg-red-50 text-red-700'
-                  }`}>{item.subCategory}</span>
+                    item.subCategory === '안전' ? 'bg-red-50 text-red-700' :
+                    'bg-purple-50 text-purple-700'
+                  }`}>{item.subCategory === '-' ? '성능' : item.subCategory}</span>
                   <span style={{ color: '#1d1d1f' }}>{item.content}</span>
                 </div>
                 {item.method && item.method.length > 0 && (

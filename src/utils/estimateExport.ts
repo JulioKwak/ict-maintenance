@@ -60,6 +60,7 @@ function fillEstimateSheet(
   recipient: string,
   issueDate: string,
   perInstanceTotal: number,
+  totalCost: number,
 ) {
   ws.getCell('A3').value = building.companyName
   ws.getCell('C6').value = recipient
@@ -80,6 +81,12 @@ function fillEstimateSheet(
   ws.getCell('E7').value = `   연락처 : ${company.phone}`
   ws.getCell('E8').value = `   e-mail : ${company.email}`
   ws.getCell('G25').value = building.discountRate / 100
+
+  // 합계(G28)·금액(C10)은 템플릿에 천원 단위 이하 절사(ROUNDDOWN(...,-3)) 수식이 걸려 있지만,
+  // 수식은 Excel이 다시 계산해줘야 값이 갱신되므로 재계산 없이 열어도 맞게 보이도록 직접 절사한 값을 넣는다.
+  const truncatedTotal = Math.floor(totalCost / 1000) * 1000
+  ws.getCell('G28').value = truncatedTotal
+  ws.getCell('C10').value = truncatedTotal
 
   const inspectionRows: { row: number; checked: boolean }[] = [
     { row: 13, checked: building.inspectionSchedule.maintenanceH1 },
@@ -247,7 +254,7 @@ export async function buildEstimateWorkbook(
   const detailSheet = wb.getWorksheet('세부내역')
   if (!estimateSheet || !detailSheet) throw new Error('견적서 양식 파일의 시트 구조가 올바르지 않습니다.')
 
-  fillEstimateSheet(estimateSheet, building, company, recipient, issueDate, perInstanceTotal)
+  fillEstimateSheet(estimateSheet, building, company, recipient, issueDate, perInstanceTotal, cost.totalCost)
   fillDetailSheet(detailSheet, building, items, directLaborCost, totalPersonnel, directExpense, cost.overheadCost, cost.techFee)
 
   return wb
